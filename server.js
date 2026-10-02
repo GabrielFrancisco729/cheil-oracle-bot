@@ -35,9 +35,10 @@ app.use(express.json());
 
 const BQ_CONFIG = {
   projectId: process.env.GCP_PROJECT_ID || 'cheil-bi',
-  datasets: {
-    main: process.env.BQ_DATASET_MAIN || 'consolidated',
-    dimensions: process.env.BQ_DATASET_DIMENSIONS || 'alldimensions',
+  dataset: process.env.BQ_DATASET_MAIN || 'apollo_gold',
+  tables: {
+    main: 'fConsolidated',
+    dimensions: 'dAllDimensions',
   }
 };
 
@@ -95,13 +96,14 @@ async function generateSQL(question, userApiKey) {
           
           CONTEXTO DO BANCO DE DADOS:
           - Projeto: ${BQ_CONFIG.projectId}
-          - Dataset "consolidated": contém dados consolidados de vendas
-          - Dataset "alldimensions": contém dimensões e lookups
+          - Dataset: ${BQ_CONFIG.dataset}
+          - Tabela de dados: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\`
+          - Tabela de dimensões: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\`
           
           INSTRUÇÕES:
           1. Analise a pergunta do usuário
           2. Gere uma query SQL válida para BigQuery
-          3. Use os datasets disponíveis: ${BQ_CONFIG.datasets.main}, ${BQ_CONFIG.datasets.dimensions}
+          3. Use as tabelas corretas com o caminho completo: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\` e \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\`
           4. Responda APENAS com o SQL, sem explicação ou markdown
           5. Se não conseguir gerar SQL, responda: "ERROR: não consegui gerar SQL"
           
