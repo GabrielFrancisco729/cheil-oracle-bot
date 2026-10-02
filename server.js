@@ -1,20 +1,19 @@
 /**
- * BACKEND COMPLETO: Oráculo de Dados Cheil BI
+ * BACKEND SIMPLIFICADO: Oráculo de Dados Cheil BI
+ * 
+ * Versão 2: Usuário fornece sua própria API Key do Claude/OpenAI
  * 
  * Funcionalidades:
- * - OAuth com OpenAI (usuários logam com ChatGPT deles)
- * - Integração BigQuery (Google Cloud)
- * - Integração Claude API (processa perguntas)
- * - Chat interativo
- * 
- * Stack: Express + JWT + BigQuery + Claude
+ * - Sem OAuth (mais simples)
+ * - Usuário coloca sua API Key
+ * - Backend valida e processa
+ * - Integração BigQuery
+ * - Integração Claude API (com key do usuário)
  */
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const jwt = require('jsonwebtoken');
-const axios = require('axios');
 const { BigQuery } = require('@google-cloud/bigquery');
 const Anthropic = require('@anthropic-ai/sdk');
 
@@ -34,21 +33,6 @@ app.use(express.json());
 // CONFIGURAÇÕES GLOBAIS
 // ============================================================================
 
-const OPENAI_CLIENT_ID = process.env.OPENAI_CLIENT_ID;
-const OPENAI_CLIENT_SECRET = process.env.OPENAI_CLIENT_SECRET;
-const OPENAI_REDIRECT_URI = process.env.OPENAI_REDIRECT_URI || 'http://localhost:3000/auth/callback';
-const JWT_SECRET = process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui-mude-em-producao';
-
-// BigQuery
-const bigquery = new BigQuery({
-  projectId: process.env.GCP_PROJECT_ID,
-  keyFilename: process.env.GCP_SERVICE_ACCOUNT_JSON,
-});
-
-// ============================================================================
-// HELPER: Extrair configurações do BigQuery
-// ============================================================================
-
 const BQ_CONFIG = {
   projectId: process.env.GCP_PROJECT_ID || 'cheil-bi',
   datasets: {
@@ -57,103 +41,47 @@ const BQ_CONFIG = {
   }
 };
 
-// ============================================================================
-// ROTA: Login - Redireciona para OpenAI OAuth
-// ============================================================================
-
-app.get('/auth/login', (req, res) => {
-  const authUrl = new URL('https://auth.openai.com/authorize');
-  
-  authUrl.searchParams.append('client_id', OPENAI_CLIENT_ID);
-  authUrl.searchParams.append('redirect_uri', OPENAI_REDIRECT_URI);
-  authUrl.searchParams.append('response_type', 'code');
-  authUrl.searchParams.append('scope', 'openai-api');
-  
-  res.redirect(authUrl.toString());
+// BigQuery (usa credenciais do servidor)
+const bigquery = new BigQuery({
+  projectId: process.env.GCP_PROJECT_ID,
+  keyFilename: process.env.GCP_SERVICE_ACCOUNT_JSON,
 });
 
 // ============================================================================
-// ROTA: Callback - OpenAI redireciona aqui após autorização
+// FUNÇÃO: Validar API Key
 // ============================================================================
 
-app.get('/auth/callback', async (req, res) => {
-  const { code, error } = req.query;
-
-  if (error) {
-    return res.redirect(`${process.env.FRONTEND_URL}?error=${error}`);
-  }
-
+async function validateApiKey(apiKey) {
   try {
-    // 1. Trocar código por access token
-    const tokenResponse = await axios.post('https://auth.openai.com/token', {
-      client_id: OPENAI_CLIENT_ID,
-      client_secret: OPENAI_CLIENT_SECRET,
-      code,
-      redirect_uri: OPENAI_REDIRECT_URI,
-      grant_type: 'authorization_code',
+    const client = new Anthropic({
+      apiKey: apiKey,
     });
 
-    const { access_token, refresh_token } = tokenResponse.data;
-
-    // 2. Buscar informações do usuário
-    const userResponse = await axios.get('https://api.openai.com/v1/user', {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
+    // Testa com uma pergunta simples
+    await client.messages.create({
+      model: 'claude-opus-4-1',
+      max_tokens: 10,
+      messages: [
+        {
+          role: 'user',
+          content: 'Test',
+        }
+      ]
     });
 
-    const user = userResponse.data;
-
-    // 3. Criar JWT com token do OpenAI
-    const jwtToken = jwt.sign(
-      {
-        userId: user.id,
-        userEmail: user.email,
-        openaiAccessToken: access_token,
-        openaiRefreshToken: refresh_token,
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // 4. Redirecionar com token
-    res.redirect(`${process.env.FRONTEND_URL}?token=${jwtToken}`);
-
+    return { valid: true };
   } catch (error) {
-    console.error('Erro no callback:', error.message);
-    res.redirect(`${process.env.FRONTEND_URL}?error=auth_failed`);
-  }
-});
-
-// ============================================================================
-// MIDDLEWARE: Validar JWT
-// ============================================================================
-
-function validateToken(req, res, next) {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Não autenticado' });
-  }
-
-  const token = authHeader.substring(7);
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Token inválido' });
+    return { valid: false, error: error.message };
   }
 }
 
 // ============================================================================
-// FUNÇÃO: Gerar SQL com Claude usando token do usuário
+// FUNÇÃO: Gerar SQL com Claude usando key do usuário
 // ============================================================================
 
-async function generateSQL(question, userOpenaiToken) {
+async function generateSQL(question, userApiKey) {
   const client = new Anthropic({
-    apiKey: userOpenaiToken, // Usa token do usuário!
+    apiKey: userApiKey,
   });
 
   const response = await client.messages.create({
@@ -167,14 +95,14 @@ async function generateSQL(question, userOpenaiToken) {
           
           CONTEXTO DO BANCO DE DADOS:
           - Projeto: ${BQ_CONFIG.projectId}
-          - Dataset "consolidated": contém dados consolidados
+          - Dataset "consolidated": contém dados consolidados de vendas
           - Dataset "alldimensions": contém dimensões e lookups
           
           INSTRUÇÕES:
           1. Analise a pergunta do usuário
           2. Gere uma query SQL válida para BigQuery
           3. Use os datasets disponíveis: ${BQ_CONFIG.datasets.main}, ${BQ_CONFIG.datasets.dimensions}
-          4. Responda APENAS com o SQL, sem explicação
+          4. Responda APENAS com o SQL, sem explicação ou markdown
           5. Se não conseguir gerar SQL, responda: "ERROR: não consegui gerar SQL"
           
           PERGUNTA DO USUÁRIO: "${question}"
@@ -210,9 +138,9 @@ async function executeQuery(sql) {
 // FUNÇÃO: Processar resposta com Claude
 // ============================================================================
 
-async function formatAnswer(question, sqlResults, userOpenaiToken) {
+async function formatAnswer(question, sqlResults, userApiKey) {
   const client = new Anthropic({
-    apiKey: userOpenaiToken,
+    apiKey: userApiKey,
   });
 
   const resultsJson = JSON.stringify(sqlResults, null, 2);
@@ -232,7 +160,7 @@ async function formatAnswer(question, sqlResults, userOpenaiToken) {
           TAREFA:
           1. Analise os dados retornados
           2. Resuma de forma clara e útil em português
-          3. Destaque insights principais
+          3. Destaque os insights principais
           4. Use formatação simples (sem markdown complexo)
           5. Se não houver dados, explique por quê
           
@@ -246,21 +174,60 @@ async function formatAnswer(question, sqlResults, userOpenaiToken) {
 }
 
 // ============================================================================
-// ROTA: Fazer pergunta (requer autenticação)
+// ROTA: Validar API Key
 // ============================================================================
 
-app.post('/api/ask', validateToken, async (req, res) => {
+app.post('/api/validate-key', async (req, res) => {
   try {
-    const { question } = req.body;
+    const { apiKey } = req.body;
+
+    if (!apiKey || apiKey.trim().length === 0) {
+      return res.status(400).json({ error: 'API Key vazia' });
+    }
+
+    const validation = await validateApiKey(apiKey);
+
+    if (validation.valid) {
+      res.json({
+        success: true,
+        message: 'API Key válida! Você pode começar a fazer perguntas.'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'API Key inválida. Verifique e tente novamente.'
+      });
+    }
+
+  } catch (error) {
+    console.error('Erro ao validar key:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// ROTA: Fazer pergunta (requer API Key do usuário)
+// ============================================================================
+
+app.post('/api/ask', async (req, res) => {
+  try {
+    const { question, apiKey } = req.body;
+
+    if (!apiKey || apiKey.trim().length === 0) {
+      return res.status(401).json({ error: 'API Key não fornecida' });
+    }
 
     if (!question || question.trim().length === 0) {
       return res.status(400).json({ error: 'Pergunta vazia' });
     }
 
-    // 1. Gerar SQL com Claude (usando token do usuário)
-    console.log(`[${req.user.userEmail}] Gerando SQL para: ${question}`);
+    // 1. Gerar SQL com Claude (usando key do usuário)
+    console.log(`[User] Gerando SQL para: ${question}`);
     
-    const sql = await generateSQL(question, req.user.openaiAccessToken);
+    const sql = await generateSQL(question, apiKey);
 
     if (sql.includes('ERROR')) {
       return res.status(400).json({
@@ -270,12 +237,12 @@ app.post('/api/ask', validateToken, async (req, res) => {
     }
 
     // 2. Executar SQL no BigQuery
-    console.log(`[${req.user.userEmail}] Executando SQL`);
+    console.log(`[User] Executando SQL`);
     const results = await executeQuery(sql);
 
     // 3. Formatar resposta com Claude
-    console.log(`[${req.user.userEmail}] Formatando resposta`);
-    const answer = await formatAnswer(question, results, req.user.openaiAccessToken);
+    console.log(`[User] Formatando resposta`);
+    const answer = await formatAnswer(question, results, apiKey);
 
     res.json({
       success: true,
@@ -295,23 +262,16 @@ app.post('/api/ask', validateToken, async (req, res) => {
 });
 
 // ============================================================================
-// ROTA: Verificar se está autenticado
-// ============================================================================
-
-app.get('/api/me', validateToken, (req, res) => {
-  res.json({
-    userId: req.user.userId,
-    email: req.user.userEmail,
-    authenticated: true
-  });
-});
-
-// ============================================================================
 // ROTA: Health check
 // ============================================================================
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    bigquery: 'connected',
+    mode: 'user-api-key'
+  });
 });
 
 // ============================================================================
@@ -348,12 +308,12 @@ app.listen(PORT, () => {
 ║                                        ║
 ║   Servidor rodando em:                 ║
 ║   http://localhost:${PORT}             ║
+║                                        ║
+║   Modo: Cada usuário usa sua API Key  ║
 ╚════════════════════════════════════════╝
   `);
   
   // Validações de startup
-  if (!OPENAI_CLIENT_ID) console.warn('⚠️  OPENAI_CLIENT_ID não configurado');
-  if (!OPENAI_CLIENT_SECRET) console.warn('⚠️  OPENAI_CLIENT_SECRET não configurado');
   if (!process.env.GCP_PROJECT_ID) console.warn('⚠️  GCP_PROJECT_ID não configurado');
   if (!process.env.GCP_SERVICE_ACCOUNT_JSON) console.warn('⚠️  GCP_SERVICE_ACCOUNT_JSON não configurado');
 });

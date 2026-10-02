@@ -53,7 +53,7 @@
       margin-bottom: 30px;
     }
 
-    .login-screen .features {
+    .login-screen .info-box {
       background: #f5f5f5;
       padding: 20px;
       border-radius: 8px;
@@ -61,35 +61,73 @@
       text-align: left;
     }
 
-    .login-screen .features li {
-      list-style: none;
-      padding: 10px 0;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      color: #555;
+    .login-screen .info-box h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 14px;
     }
 
-    .login-screen .features li:before {
-      content: "✓";
+    .login-screen .info-box p {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .login-screen .info-box a {
       color: #667eea;
-      font-weight: bold;
-      font-size: 18px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .login-screen .info-box a:hover {
+      text-decoration: underline;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: monospace;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group input::placeholder {
+      color: #999;
     }
 
     .login-btn {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
-      padding: 15px 40px;
+      padding: 12px 40px;
       font-size: 16px;
       font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
+      width: 100%;
     }
 
     .login-btn:hover {
@@ -99,6 +137,12 @@
 
     .login-btn:active {
       transform: translateY(0);
+    }
+
+    .login-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
     }
 
     /* ===== CHAT SCREEN ===== */
@@ -118,6 +162,7 @@
       color: white;
       padding: 20px;
       text-align: center;
+      position: relative;
     }
 
     .header h1 {
@@ -128,12 +173,6 @@
     .header p {
       font-size: 14px;
       opacity: 0.9;
-    }
-
-    .header .user-info {
-      font-size: 12px;
-      opacity: 0.8;
-      margin-top: 10px;
     }
 
     .logout-btn {
@@ -308,26 +347,6 @@
       display: block;
     }
 
-    .error-banner button {
-      background: #c62828;
-      padding: 8px 16px;
-      margin-top: 10px;
-      font-size: 12px;
-    }
-
-    .empty-state {
-      text-align: center;
-      color: #999;
-      padding: 40px 20px;
-    }
-
-    .empty-state svg {
-      width: 80px;
-      height: 80px;
-      opacity: 0.3;
-      margin-bottom: 20px;
-    }
-
     /* Scrollbar styling */
     .chat-box::-webkit-scrollbar {
       width: 8px;
@@ -354,30 +373,46 @@
       <h1>🔮 Oráculo de Dados</h1>
       <p>Cheil BI - Faça perguntas sobre seus dados</p>
       
-      <div class="features">
-        <li>Use sua própria conta do ChatGPT</li>
-        <li>Sem custos - você controla seu usage</li>
-        <li>Respostas em linguagem natural</li>
-        <li>Acesso direto ao seu BigQuery</li>
+      <div class="info-box">
+        <h3>📌 Como funciona?</h3>
+        <p>✓ Cole sua API Key do Claude (seu próprio token)</p>
+        <p>✓ Cada pergunta usa seu crédito do Claude</p>
+        <p>✓ Você controla seu uso e gastos</p>
+        <p>✓ Sua key fica segura no navegador</p>
       </div>
 
-      <button class="login-btn" onclick="initiateLogin()">
-        🚀 Logar com ChatGPT
+      <div class="info-box">
+        <h3>🔑 Ainda não tem API Key?</h3>
+        <p>1. Acesse: <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a></p>
+        <p>2. Crie uma nova secret key</p>
+        <p>3. Copie e cole no campo abaixo</p>
+      </div>
+
+      <div class="form-group">
+        <label for="apiKeyInput">API Key do Claude/OpenAI:</label>
+        <input 
+          type="password" 
+          id="apiKeyInput" 
+          placeholder="sk-proj-xxxxxxxxxxxxxxxx"
+          autocomplete="off"
+        >
+      </div>
+
+      <button class="login-btn" onclick="validateAndLogin()">
+        🚀 Conectar e Começar
       </button>
     </div>
 
     <!-- CHAT SCREEN -->
     <div class="chat-screen" id="chatScreen">
       <div class="header">
-        <button class="logout-btn" onclick="logout()">Sair</button>
+        <button class="logout-btn" onclick="logout()">Desconectar</button>
         <h1>🔮 Oráculo de Dados</h1>
         <p>Cheil BI</p>
-        <div class="user-info" id="userInfo"></div>
       </div>
 
       <div class="error-banner" id="errorBanner">
         <span id="errorText"></span>
-        <button onclick="closeError()" style="background: #c62828; border: 1px solid rgba(0,0,0,0.1);">Fechar</button>
       </div>
 
       <div class="chat-box" id="chatBox"></div>
@@ -395,114 +430,97 @@
   </div>
 
   <script>
-    // ===== CONFIG =====
     const API_URL = window.location.origin;
-    const TOKEN_KEY = 'oracle_jwt_token';
-    const USER_EMAIL_KEY = 'oracle_user_email';
-
-    // ===== ELEMENTS =====
-    const loginScreen = document.getElementById('loginScreen');
-    const chatScreen = document.getElementById('chatScreen');
+    const API_KEY_STORAGE = 'oracle_api_key';
     const chatBox = document.getElementById('chatBox');
     const questionInput = document.getElementById('questionInput');
     const sendBtn = document.getElementById('sendBtn');
-    const userInfo = document.getElementById('userInfo');
+    const loginScreen = document.getElementById('loginScreen');
+    const chatScreen = document.getElementById('chatScreen');
+    const apiKeyInput = document.getElementById('apiKeyInput');
     const errorBanner = document.getElementById('errorBanner');
     const errorText = document.getElementById('errorText');
 
     // ===== STARTUP =====
     window.addEventListener('load', () => {
-      // Verificar se voltamos do OAuth
-      const urlParams = new URLSearchParams(window.location.search);
-      const token = urlParams.get('token');
-      const error = urlParams.get('error');
-
-      if (error) {
-        showError(`Erro de autenticação: ${error}`);
-        return;
-      }
-
-      if (token) {
-        localStorage.setItem(TOKEN_KEY, token);
-        // Limpar URL
-        window.history.replaceState({}, document.title, '/');
+      const savedKey = localStorage.getItem(API_KEY_STORAGE);
+      if (savedKey) {
         loadChatScreen();
       } else {
-        // Verificar se já tem token salvo
-        const savedToken = localStorage.getItem(TOKEN_KEY);
-        if (savedToken) {
-          validateToken(savedToken);
-        } else {
-          showLoginScreen();
-        }
+        showLoginScreen();
       }
     });
 
     // ===== LOGIN =====
-    function initiateLogin() {
-      window.location.href = `${API_URL}/auth/login`;
+    async function validateAndLogin() {
+      const apiKey = apiKeyInput.value.trim();
+
+      if (!apiKey) {
+        showError('Por favor, cole sua API Key');
+        return;
+      }
+
+      // Mostrar loading
+      const btn = document.querySelector('.login-btn');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ Validando...';
+
+      try {
+        const response = await fetch(`${API_URL}/api/validate-key`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Salvar key localmente
+          localStorage.setItem(API_KEY_STORAGE, apiKey);
+          loadChatScreen();
+        } else {
+          showError(data.error || 'API Key inválida');
+        }
+      } catch (error) {
+        showError(`Erro de conexão: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
     }
 
     function showLoginScreen() {
       loginScreen.classList.add('show');
       chatScreen.classList.remove('show');
+      apiKeyInput.focus();
     }
 
     // ===== CHAT =====
-    async function loadChatScreen() {
+    function loadChatScreen() {
       chatScreen.classList.add('show');
       loginScreen.classList.remove('show');
-      
-      // Carregar informações do usuário
-      await loadUserInfo();
-      
-      // Foco no input
       questionInput.focus();
-      
-      // Mensagem inicial
       addMessage('bot', 'Olá! 👋 Sou o Oráculo de Dados da Cheil BI. Faça-me uma pergunta sobre seus dados!');
     }
 
-    async function loadUserInfo() {
-      try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        const response = await fetch(`${API_URL}/api/me`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) throw new Error('Falha ao carregar usuário');
-
-        const data = await response.json();
-        userInfo.textContent = `Logado como: ${data.email}`;
-        localStorage.setItem(USER_EMAIL_KEY, data.email);
-      } catch (error) {
-        console.error('Erro:', error);
-        logout();
-      }
-    }
-
-    // ===== CHAT LOGIC =====
     async function sendQuestion() {
       const question = questionInput.value.trim();
       if (!question) return;
 
-      // UI
+      const apiKey = localStorage.getItem(API_KEY_STORAGE);
+
       addMessage('user', question);
       questionInput.value = '';
       sendBtn.disabled = true;
 
-      // Loading
       addMessage('bot', '<div class="loading"><span></span><span></span><span></span></div>');
 
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
         const response = await fetch(`${API_URL}/api/ask`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ question })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, apiKey })
         });
 
         const data = await response.json();
@@ -519,7 +537,6 @@
       } catch (error) {
         const lastMessage = chatBox.lastChild;
         if (lastMessage) chatBox.removeChild(lastMessage);
-        
         addMessage('bot', `❌ Erro de conexão: ${error.message}`, true);
       } finally {
         sendBtn.disabled = false;
@@ -544,34 +561,17 @@
     function showError(message) {
       errorText.textContent = message;
       errorBanner.classList.add('show');
+      setTimeout(() => {
+        errorBanner.classList.remove('show');
+      }, 5000);
     }
 
-    function closeError() {
-      errorBanner.classList.remove('show');
-    }
-
-    // ===== AUTH =====
-    async function validateToken(token) {
-      try {
-        const response = await fetch(`${API_URL}/api/me`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-          loadChatScreen();
-        } else {
-          logout();
-        }
-      } catch (error) {
-        logout();
-      }
-    }
-
+    // ===== LOGOUT =====
     function logout() {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_EMAIL_KEY);
-      showLoginScreen();
+      localStorage.removeItem(API_KEY_STORAGE);
       chatBox.innerHTML = '';
+      showLoginScreen();
+      apiKeyInput.value = '';
     }
 
     // ===== KEYBOARD =====
@@ -579,6 +579,12 @@
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendQuestion();
+      }
+    });
+
+    apiKeyInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        validateAndLogin();
       }
     });
   </script>
