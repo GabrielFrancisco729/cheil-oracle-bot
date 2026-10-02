@@ -162,7 +162,7 @@ async function executeQuery(sql) {
   try {
     const options = {
       query: sql,
-      location: 'southamerica-east1', // Brazil South
+      location: 'US', // Dataset location is US
     };
 
     const [rows] = await bigquery.query(options);
