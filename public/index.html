@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oráculo de Dados - Cheil BI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 600px;
+      overflow: hidden;
+    }
+
+    /* ===== LOGIN SCREEN ===== */
+    .login-screen {
+      padding: 60px 40px;
+      text-align: center;
+      display: none;
+    }
+
+    .login-screen.show {
+      display: block;
+    }
+
+    .login-screen h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .login-screen p {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .login-screen .features {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .login-screen .features li {
+      list-style: none;
+      padding: 10px 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: #555;
+    }
+
+    .login-screen .features li:before {
+      content: "✓";
+      color: #667eea;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .login-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ===== CHAT SCREEN ===== */
+    .chat-screen {
+      display: none;
+      flex-direction: column;
+      height: 80vh;
+      max-height: 600px;
+    }
+
+    .chat-screen.show {
+      display: flex;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .header .user-info {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 10px;
+    }
+
+    .logout-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 8px 16px;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255,255,255,0.3);
+      border-color: rgba(255,255,255,0.6);
+    }
+
+    .chat-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      background: #fafafa;
+    }
+
+    .message {
+      display: flex;
+      gap: 10px;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .message.user {
+      justify-content: flex-end;
+    }
+
+    .message.bot {
+      justify-content: flex-start;
+    }
+
+    .message-bubble {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      word-wrap: break-word;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .message.user .message-bubble {
+      background: #667eea;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.bot .message-bubble {
+      background: white;
+      color: #333;
+      border: 1px solid #e0e0e0;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.bot .message-bubble.error {
+      background: #ffebee;
+      color: #c62828;
+      border-color: #ef5350;
+    }
+
+    .input-area {
+      padding: 20px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 10px;
+      background: white;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    button {
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #764ba2;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loading span {
+      width: 8px;
+      height: 8px;
+      background: #667eea;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite;
+    }
+
+    .loading span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .loading span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: scale(0);
+      }
+      40% {
+        transform: scale(1);
+      }
+    }
+
+    .error-banner {
+      background: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    .error-banner.show {
+      display: block;
+    }
+
+    .error-banner button {
+      background: #c62828;
+      padding: 8px 16px;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 40px 20px;
+    }
+
+    .empty-state svg {
+      width: 80px;
+      height: 80px;
+      opacity: 0.3;
+      margin-bottom: 20px;
+    }
+
+    /* Scrollbar styling */
+    .chat-box::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .chat-box::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chat-box::-webkit-scrollbar-thumb {
+      background: #ddd;
+      border-radius: 4px;
+    }
+
+    .chat-box::-webkit-scrollbar-thumb:hover {
+      background: #bbb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- LOGIN SCREEN -->
+    <div class="login-screen show" id="loginScreen">
+      <h1>🔮 Oráculo de Dados</h1>
+      <p>Cheil BI - Faça perguntas sobre seus dados</p>
+      
+      <div class="features">
+        <li>Use sua própria conta do ChatGPT</li>
+        <li>Sem custos - você controla seu usage</li>
+        <li>Respostas em linguagem natural</li>
+        <li>Acesso direto ao seu BigQuery</li>
+      </div>
+
+      <button class="login-btn" onclick="initiateLogin()">
+        🚀 Logar com ChatGPT
+      </button>
+    </div>
+
+    <!-- CHAT SCREEN -->
+    <div class="chat-screen" id="chatScreen">
+      <div class="header">
+        <button class="logout-btn" onclick="logout()">Sair</button>
+        <h1>🔮 Oráculo de Dados</h1>
+        <p>Cheil BI</p>
+        <div class="user-info" id="userInfo"></div>
+      </div>
+
+      <div class="error-banner" id="errorBanner">
+        <span id="errorText"></span>
+        <button onclick="closeError()" style="background: #c62828; border: 1px solid rgba(0,0,0,0.1);">Fechar</button>
+      </div>
+
+      <div class="chat-box" id="chatBox"></div>
+
+      <div class="input-area">
+        <input 
+          type="text" 
+          id="questionInput" 
+          placeholder="Faça uma pergunta sobre os dados..."
+          autocomplete="off"
+        >
+        <button onclick="sendQuestion()" id="sendBtn">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== CONFIG =====
+    const API_URL = window.location.origin;
+    const TOKEN_KEY = 'oracle_jwt_token';
+    const USER_EMAIL_KEY = 'oracle_user_email';
+
+    // ===== ELEMENTS =====
+    const loginScreen = document.getElementById('loginScreen');
+    const chatScreen = document.getElementById('chatScreen');
+    const chatBox = document.getElementById('chatBox');
+    const questionInput = document.getElementById('questionInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const userInfo = document.getElementById('userInfo');
+    const errorBanner = document.getElementById('errorBanner');
+    const errorText = document.getElementById('errorText');
+
+    // ===== STARTUP =====
+    window.addEventListener('load', () => {
+      // Verificar se voltamos do OAuth
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      const error = urlParams.get('error');
+
+      if (error) {
+        showError(`Erro de autenticação: ${error}`);
+        return;
+      }
+
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        // Limpar URL
+        window.history.replaceState({}, document.title, '/');
+        loadChatScreen();
+      } else {
+        // Verificar se já tem token salvo
+        const savedToken = localStorage.getItem(TOKEN_KEY);
+        if (savedToken) {
+          validateToken(savedToken);
+        } else {
+          showLoginScreen();
+        }
+      }
+    });
+
+    // ===== LOGIN =====
+    function initiateLogin() {
+      window.location.href = `${API_URL}/auth/login`;
+    }
+
+    function showLoginScreen() {
+      loginScreen.classList.add('show');
+      chatScreen.classList.remove('show');
+    }
+
+    // ===== CHAT =====
+    async function loadChatScreen() {
+      chatScreen.classList.add('show');
+      loginScreen.classList.remove('show');
+      
+      // Carregar informações do usuário
+      await loadUserInfo();
+      
+      // Foco no input
+      questionInput.focus();
+      
+      // Mensagem inicial
+      addMessage('bot', 'Olá! 👋 Sou o Oráculo de Dados da Cheil BI. Faça-me uma pergunta sobre seus dados!');
+    }
+
+    async function loadUserInfo() {
+      try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const response = await fetch(`${API_URL}/api/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Falha ao carregar usuário');
+
+        const data = await response.json();
+        userInfo.textContent = `Logado como: ${data.email}`;
+        localStorage.setItem(USER_EMAIL_KEY, data.email);
+      } catch (error) {
+        console.error('Erro:', error);
+        logout();
+      }
+    }
+
+    // ===== CHAT LOGIC =====
+    async function sendQuestion() {
+      const question = questionInput.value.trim();
+      if (!question) return;
+
+      // UI
+      addMessage('user', question);
+      questionInput.value = '';
+      sendBtn.disabled = true;
+
+      // Loading
+      addMessage('bot', '<div class="loading"><span></span><span></span><span></span></div>');
+
+      try {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const response = await fetch(`${API_URL}/api/ask`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        // Remover loading
+        const lastMessage = chatBox.lastChild;
+        if (lastMessage) chatBox.removeChild(lastMessage);
+
+        if (data.success) {
+          addMessage('bot', data.answer);
+        } else {
+          addMessage('bot', `❌ Erro: ${data.error}`, true);
+        }
+      } catch (error) {
+        const lastMessage = chatBox.lastChild;
+        if (lastMessage) chatBox.removeChild(lastMessage);
+        
+        addMessage('bot', `❌ Erro de conexão: ${error.message}`, true);
+      } finally {
+        sendBtn.disabled = false;
+        questionInput.focus();
+      }
+    }
+
+    function addMessage(sender, text, isError = false) {
+      const messageEl = document.createElement('div');
+      messageEl.className = `message ${sender}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = `message-bubble ${isError ? 'error' : ''}`;
+      bubble.innerHTML = text;
+
+      messageEl.appendChild(bubble);
+      chatBox.appendChild(messageEl);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // ===== ERROR HANDLING =====
+    function showError(message) {
+      errorText.textContent = message;
+      errorBanner.classList.add('show');
+    }
+
+    function closeError() {
+      errorBanner.classList.remove('show');
+    }
+
+    // ===== AUTH =====
+    async function validateToken(token) {
+      try {
+        const response = await fetch(`${API_URL}/api/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          loadChatScreen();
+        } else {
+          logout();
+        }
+      } catch (error) {
+        logout();
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_EMAIL_KEY);
+      showLoginScreen();
+      chatBox.innerHTML = '';
+    }
+
+    // ===== KEYBOARD =====
+    questionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendQuestion();
+      }
+    });
+  </script>
+</body>
+</html>
