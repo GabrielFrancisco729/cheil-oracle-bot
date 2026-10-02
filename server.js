@@ -43,10 +43,23 @@ const BQ_CONFIG = {
 };
 
 // BigQuery (usa credenciais do servidor)
-const bigquery = new BigQuery({
+let bigqueryConfig = {
   projectId: process.env.GCP_PROJECT_ID,
-  keyFilename: process.env.GCP_SERVICE_ACCOUNT_JSON,
-});
+};
+
+// Se GCP_SERVICE_ACCOUNT_JSON for uma string JSON, parsear
+if (process.env.GCP_SERVICE_ACCOUNT_JSON) {
+  try {
+    const serviceAccount = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_JSON);
+    bigqueryConfig.credentials = serviceAccount;
+  } catch (error) {
+    console.error('Erro ao parsear GCP_SERVICE_ACCOUNT_JSON:', error.message);
+    // Tenta usar como caminho de arquivo
+    bigqueryConfig.keyFilename = process.env.GCP_SERVICE_ACCOUNT_JSON;
+  }
+}
+
+const bigquery = new BigQuery(bigqueryConfig);
 
 // ============================================================================
 // FUNÇÃO: Validar API Key
