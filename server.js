@@ -78,7 +78,7 @@ async function generateSQL(question, userApiKey) {
   });
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-1',
+    model: 'claude-opus-4',
     max_tokens: 500,
     messages: [
       {
@@ -140,7 +140,7 @@ async function formatAnswer(question, sqlResults, userApiKey) {
   const resultsJson = JSON.stringify(sqlResults, null, 2);
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-1',
+    model: 'claude-opus-4',
     max_tokens: 1500,
     messages: [
       {
