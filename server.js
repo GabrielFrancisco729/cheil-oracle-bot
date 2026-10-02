@@ -107,7 +107,12 @@ async function generateSQL(question, userApiKey) {
     ]
   });
 
-  return response.content[0].text;
+  // Extrair texto da resposta de forma segura
+  if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
+    return response.content[0].text;
+  } else {
+    throw new Error('Resposta vazia do Claude');
+  }
 }
 
 // ============================================================================
@@ -164,7 +169,12 @@ async function formatAnswer(question, sqlResults, userApiKey) {
     ]
   });
 
-  return response.content[0].text;
+  // Extrair texto da resposta de forma segura
+  if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
+    return response.content[0].text;
+  } else {
+    throw new Error('Resposta vazia do Claude ao formatar resposta');
+  }
 }
 
 // ============================================================================
