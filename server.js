@@ -105,24 +105,34 @@ INSTRUÇÕES:
     });
 
     // Extrair texto da resposta de forma segura
-    console.log('[SQL Debug] Response structure:', JSON.stringify(response, null, 2));
-    
     if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-      const firstContent = response.content[0];
-      console.log('[SQL Debug] First content:', JSON.stringify(firstContent, null, 2));
-      
-      // Tenta varios campos possíveis
-      let text = firstContent.text || firstContent.content || '';
-      
-      if (!text || typeof text !== 'string') {
-        console.error('[SQL Error] Nenhum texto encontrado em:', firstContent);
-        throw new Error('Resposta do Claude não contém texto');
+      // Procura pelo primeiro bloco do tipo "text" (pode haver blocos de "thinking" primeiro)
+      let textBlock = null;
+      for (const block of response.content) {
+        if (block.type === 'text' && block.text) {
+          textBlock = block;
+          break;
+        }
       }
+      
+      if (!textBlock || !textBlock.text) {
+        console.error('[SQL Error] Nenhum bloco de texto encontrado em:', response.content);
+        throw new Error('Resposta do Claude não contém bloco de texto');
+      }
+      
+      let text = textBlock.text;
+      
+      // Remove markdown se tiver
+      if (text.includes('```sql')) {
+        text = text.replace(/```sql\n?/g, '').replace(/```\n?/g, '');
+      }
+      
+      text = text.trim();
       
       console.log(`[SQL Generated] ${text.substring(0, 100)}...`);
       return text;
     } else {
-      console.error('[SQL Error] Resposta vazia:', JSON.stringify(response, null, 2));
+      console.error('[SQL Error] Resposta vazia do Claude');
       throw new Error('Resposta vazia do Claude');
     }
   } catch (error) {
@@ -179,16 +189,23 @@ Por favor, resuma esses dados de forma clara em português. Destaque os pontos p
 
     // Extrair texto da resposta de forma segura
     if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-      const text = response.content[0].text;
-      
-      if (!text || typeof text !== 'string') {
-        console.error('[Format Answer Error] Texto inválido:', response.content[0]);
-        throw new Error('Resposta do Claude não é texto válido');
+      // Procura pelo primeiro bloco do tipo "text"
+      let textBlock = null;
+      for (const block of response.content) {
+        if (block.type === 'text' && block.text) {
+          textBlock = block;
+          break;
+        }
       }
       
-      return text;
+      if (!textBlock || !textBlock.text) {
+        console.error('[Format Answer Error] Nenhum bloco de texto encontrado');
+        throw new Error('Resposta do Claude não contém bloco de texto');
+      }
+      
+      return textBlock.text.trim();
     } else {
-      console.error('[Format Answer Error] Resposta vazia:', response);
+      console.error('[Format Answer Error] Resposta vazia do Claude');
       throw new Error('Resposta vazia do Claude ao formatar resposta');
     }
   } catch (error) {
