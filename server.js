@@ -77,41 +77,45 @@ async function generateSQL(question, userApiKey) {
     apiKey: userApiKey,
   });
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-5-5',
-    max_tokens: 500,
-    messages: [
-      {
-        role: 'user',
-        content: `
-          Você é um expert em SQL e análise de dados do BigQuery.
-          
-          CONTEXTO DO BANCO DE DADOS:
-          - Projeto: ${BQ_CONFIG.projectId}
-          - Dataset: ${BQ_CONFIG.dataset}
-          - Tabela de dados: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\`
-          - Tabela de dimensões: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\`
-          
-          INSTRUÇÕES:
-          1. Analise a pergunta do usuário
-          2. Gere uma query SQL válida para BigQuery
-          3. Use as tabelas corretas com o caminho completo: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\` e \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\`
-          4. Responda APENAS com o SQL, sem explicação ou markdown
-          5. Se não conseguir gerar SQL, responda: "ERROR: não consegui gerar SQL"
-          
-          PERGUNTA DO USUÁRIO: "${question}"
-          
-          SQL:
-        `
-      }
-    ]
-  });
+  const systemPrompt = `Você é um expert em SQL e análise de dados do BigQuery.
 
-  // Extrair texto da resposta de forma segura
-  if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-    return response.content[0].text;
-  } else {
-    throw new Error('Resposta vazia do Claude');
+CONTEXTO DO BANCO DE DADOS:
+- Projeto: ${BQ_CONFIG.projectId}
+- Dataset: ${BQ_CONFIG.dataset}
+- Tabela de dados consolidados: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\`
+- Tabela de dimensões: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\`
+
+INSTRUÇÕES:
+1. Responda APENAS com uma query SQL válida para BigQuery
+2. Use os nomes corretos das tabelas com o caminho completo
+3. Não inclua explicações, apenas o SQL
+4. Se não conseguir gerar SQL, responda: "ERROR"`;
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-5-5',
+      max_tokens: 500,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: `Pergunta: "${question}"\n\nGere a query SQL:`
+        }
+      ]
+    });
+
+    // Extrair texto da resposta de forma segura
+    if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
+      const text = response.content[0].text;
+      console.log(`[SQL Generated] ${text.substring(0, 100)}...`);
+      return text;
+    } else {
+      console.error('[SQL Error] Resposta vazia do Claude');
+      throw new Error('Resposta vazia do Claude');
+    }
+  } catch (error) {
+    console.error('[SQL Error]', error.message);
+    throw error;
   }
 }
 
@@ -144,36 +148,32 @@ async function formatAnswer(question, sqlResults, userApiKey) {
 
   const resultsJson = JSON.stringify(sqlResults, null, 2);
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-5-5',
-    max_tokens: 1500,
-    messages: [
-      {
-        role: 'user',
-        content: `
-          PERGUNTA ORIGINAL: "${question}"
-          
-          RESULTADO DA QUERY (JSON):
-          ${resultsJson}
-          
-          TAREFA:
-          1. Analise os dados retornados
-          2. Resuma de forma clara e útil em português
-          3. Destaque os insights principais
-          4. Use formatação simples (sem markdown complexo)
-          5. Se não houver dados, explique por quê
-          
-          RESPOSTA:
-        `
-      }
-    ]
-  });
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-5-5',
+      max_tokens: 1500,
+      messages: [
+        {
+          role: 'user',
+          content: `Pergunta: "${question}"
 
-  // Extrair texto da resposta de forma segura
-  if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-    return response.content[0].text;
-  } else {
-    throw new Error('Resposta vazia do Claude ao formatar resposta');
+Resultado dos dados (em JSON):
+${resultsJson}
+
+Por favor, resuma esses dados de forma clara em português. Destaque os pontos principais.`
+        }
+      ]
+    });
+
+    // Extrair texto da resposta de forma segura
+    if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
+      return response.content[0].text;
+    } else {
+      throw new Error('Resposta vazia do Claude ao formatar resposta');
+    }
+  } catch (error) {
+    console.error('[Format Answer Error]', error.message);
+    throw error;
   }
 }
 
@@ -227,22 +227,54 @@ app.post('/api/ask', async (req, res) => {
     // 1. Gerar SQL com Claude (usando key do usuário)
     console.log(`[User] Gerando SQL para: ${question}`);
     
-    const sql = await generateSQL(question, apiKey);
+    let sql;
+    try {
+      sql = await generateSQL(question, apiKey);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: `Erro ao gerar SQL: ${error.message}`
+      });
+    }
+
+    // Validar se conseguiu gerar SQL
+    if (!sql || sql.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Não consegui gerar uma query SQL para sua pergunta (resposta vazia)'
+      });
+    }
 
     if (sql.includes('ERROR')) {
       return res.status(400).json({
-        error: 'Não consegui gerar uma query SQL para sua pergunta',
-        debug: sql
+        success: false,
+        error: 'Não consegui gerar uma query SQL para sua pergunta'
       });
     }
 
     // 2. Executar SQL no BigQuery
     console.log(`[User] Executando SQL`);
-    const results = await executeQuery(sql);
+    let results;
+    try {
+      results = await executeQuery(sql);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: `Erro ao executar query: ${error.message}`
+      });
+    }
 
     // 3. Formatar resposta com Claude
     console.log(`[User] Formatando resposta`);
-    const answer = await formatAnswer(question, results, apiKey);
+    let answer;
+    try {
+      answer = await formatAnswer(question, results, apiKey);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: `Erro ao formatar resposta: ${error.message}`
+      });
+    }
 
     res.json({
       success: true,
