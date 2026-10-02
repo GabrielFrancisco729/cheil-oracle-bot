@@ -107,10 +107,16 @@ INSTRUÇÕES:
     // Extrair texto da resposta de forma segura
     if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
       const text = response.content[0].text;
+      
+      if (!text || typeof text !== 'string') {
+        console.error('[SQL Error] Texto da resposta inválido:', response.content[0]);
+        throw new Error('Resposta do Claude não é texto válido');
+      }
+      
       console.log(`[SQL Generated] ${text.substring(0, 100)}...`);
       return text;
     } else {
-      console.error('[SQL Error] Resposta vazia do Claude');
+      console.error('[SQL Error] Resposta vazia do Claude:', response);
       throw new Error('Resposta vazia do Claude');
     }
   } catch (error) {
@@ -167,8 +173,16 @@ Por favor, resuma esses dados de forma clara em português. Destaque os pontos p
 
     // Extrair texto da resposta de forma segura
     if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-      return response.content[0].text;
+      const text = response.content[0].text;
+      
+      if (!text || typeof text !== 'string') {
+        console.error('[Format Answer Error] Texto inválido:', response.content[0]);
+        throw new Error('Resposta do Claude não é texto válido');
+      }
+      
+      return text;
     } else {
+      console.error('[Format Answer Error] Resposta vazia:', response);
       throw new Error('Resposta vazia do Claude ao formatar resposta');
     }
   } catch (error) {
