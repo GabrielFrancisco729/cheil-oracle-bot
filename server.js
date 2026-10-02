@@ -105,18 +105,24 @@ INSTRUÇÕES:
     });
 
     // Extrair texto da resposta de forma segura
+    console.log('[SQL Debug] Response structure:', JSON.stringify(response, null, 2));
+    
     if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-      const text = response.content[0].text;
+      const firstContent = response.content[0];
+      console.log('[SQL Debug] First content:', JSON.stringify(firstContent, null, 2));
+      
+      // Tenta varios campos possíveis
+      let text = firstContent.text || firstContent.content || '';
       
       if (!text || typeof text !== 'string') {
-        console.error('[SQL Error] Texto da resposta inválido:', response.content[0]);
-        throw new Error('Resposta do Claude não é texto válido');
+        console.error('[SQL Error] Nenhum texto encontrado em:', firstContent);
+        throw new Error('Resposta do Claude não contém texto');
       }
       
       console.log(`[SQL Generated] ${text.substring(0, 100)}...`);
       return text;
     } else {
-      console.error('[SQL Error] Resposta vazia do Claude:', response);
+      console.error('[SQL Error] Resposta vazia:', JSON.stringify(response, null, 2));
       throw new Error('Resposta vazia do Claude');
     }
   } catch (error) {
