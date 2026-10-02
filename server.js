@@ -90,20 +90,33 @@ async function generateSQL(question, userApiKey, history = []) {
     apiKey: userApiKey,
   });
 
-  const systemPrompt = `Você é um expert em SQL e análise de dados do BigQuery.
+  const systemPrompt = `Você é um expert em SQL BigQuery. RESPONDA APENAS COM SQL, SEM EXPLICAÇÕES.
 
-CONTEXTO DO BANCO DE DADOS:
-- Projeto: ${BQ_CONFIG.projectId}
-- Dataset: ${BQ_CONFIG.dataset}
-- Tabela de dados consolidados: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\`
-- Tabela de dimensões: \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\`
+SCHEMA DO BANCO:
+Projeto: ${BQ_CONFIG.projectId} | Dataset: ${BQ_CONFIG.dataset}
 
-INSTRUÇÕES:
-1. Responda APENAS com uma query SQL válida para BigQuery
-2. Use os nomes corretos das tabelas com o caminho completo
-3. Não inclua explicações, apenas o SQL
-4. Se não conseguir gerar SQL, responda: "ERROR"
-5. Considere o contexto da conversa anterior para entender referências indiretas`;
+TABELAS:
+1. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\` (fConsolidated - FATOS/MÉTRICAS)
+   Métricas: SENT, DELIVERED, CLICKS, OPENS, OPT-OUT, Revenue, Total_units, Total_visits, Total_orders
+   Dimensões-chave: Date, Product (SKU), Tracking_code, COUNTRY_NAME, CHANNEL, Source
+   
+2. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.dProducts\` (LOOKUP PRODUTOS)
+   JOIN com: fConsolidated.Product = dProducts.SKU
+   Colunas úteis: SKU, PRODUCT, BU, SUB BU, subCATEGORY, FAMILY
+   
+3. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\` (dAllDimensions - CONTEXTO/DIMENSÕES)
+   JOIN com: fConsolidated.Tracking_code = dAllDimensions.TrackingCode
+   SUBSIDIÁRIAS (coluna SUB): SEDA, MX, CE, DA, etc
+   Colunas úteis: TrackingCode, SUB (SUBSIDIÁRIA), CAMPAIGN, CHANNEL, SEGMENT GROUP, AUDIENCE, BU CAMPAIGN, TRIGGER
+   
+REGRAS:
+- Use agregações (SUM, COUNT, AVG) para métricas
+- Filtre por data: WHERE DATE_TRUNC(Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) (mês atual)
+- SUBSIDIÁRIAS (em dAllDimensions.SUB): SEDA, MX, CE, DA, etc → use WHERE dAllDimensions.SUB = 'SEDA'
+- Sempre específico: se mencionar "seda", filtre por dAllDimensions.SUB = 'SEDA'
+- Ordene resultados por métrica relevante (Revenue DESC, DELIVERED DESC, etc)
+- Considere histórico conversacional para referências indiretas (ex: se falou de "seda" antes, continua sendo SEDA)
+- ERRO? Responda: ERROR`;
 
   try {
     // Preparar mensagens com histórico
