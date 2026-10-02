@@ -52,28 +52,20 @@ const bigquery = new BigQuery({
 // FUNÇÃO: Validar API Key
 // ============================================================================
 
-async function validateApiKey(apiKey) {
-  try {
-    const client = new Anthropic({
-      apiKey: apiKey,
-    });
-
-    // Testa com uma pergunta simples
-    await client.messages.create({
-      model: 'claude-opus-4-1',
-      max_tokens: 10,
-      messages: [
-        {
-          role: 'user',
-          content: 'Test',
-        }
-      ]
-    });
-
-    return { valid: true };
-  } catch (error) {
-    return { valid: false, error: error.message };
+function validateApiKey(apiKey) {
+  // Validação simples - apenas checar se tem o formato correto
+  if (!apiKey || apiKey.trim().length === 0) {
+    return { valid: false, error: 'API Key vazia' };
   }
+
+  // Deve começar com sk-ant- (Claude/Anthropic)
+  if (!apiKey.startsWith('sk-ant-')) {
+    return { valid: false, error: 'API Key deve começar com sk-ant- (Claude/Anthropic)' };
+  }
+
+  // Se passou nessas verificações, a key é válida
+  // O teste real será quando o usuário fizer a primeira pergunta
+  return { valid: true };
 }
 
 // ============================================================================
@@ -179,15 +171,11 @@ async function formatAnswer(question, sqlResults, userApiKey) {
 // ROTA: Validar API Key
 // ============================================================================
 
-app.post('/api/validate-key', async (req, res) => {
+app.post('/api/validate-key', (req, res) => {
   try {
     const { apiKey } = req.body;
 
-    if (!apiKey || apiKey.trim().length === 0) {
-      return res.status(400).json({ error: 'API Key vazia' });
-    }
-
-    const validation = await validateApiKey(apiKey);
+    const validation = validateApiKey(apiKey);
 
     if (validation.valid) {
       res.json({
@@ -197,7 +185,7 @@ app.post('/api/validate-key', async (req, res) => {
     } else {
       res.status(400).json({
         success: false,
-        error: 'API Key inválida. Verifique e tente novamente.'
+        error: validation.error
       });
     }
 
