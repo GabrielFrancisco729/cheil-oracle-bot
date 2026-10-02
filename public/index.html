@@ -383,17 +383,17 @@
 
       <div class="info-box">
         <h3>🔑 Ainda não tem API Key?</h3>
-        <p>1. Acesse: <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a></p>
+        <p>1. Acesse: <a href="https://console.anthropic.com/account/keys" target="_blank">Claude API Keys</a></p>
         <p>2. Crie uma nova secret key</p>
         <p>3. Copie e cole no campo abaixo</p>
       </div>
 
       <div class="form-group">
-        <label for="apiKeyInput">API Key do Claude/OpenAI:</label>
+        <label for="apiKeyInput">API Key do Claude:</label>
         <input 
           type="password" 
           id="apiKeyInput" 
-          placeholder="sk-proj-xxxxxxxxxxxxxxxx"
+          placeholder="sk-ant-xxxxxxxxxxxxxxxx"
           autocomplete="off"
         >
       </div>
@@ -517,10 +517,20 @@
       addMessage('bot', '<div class="loading"><span></span><span></span><span></span></div>');
 
       try {
+        // Preparar histórico para contexto (últimas 6 mensagens)
+        const allMessages = Array.from(chatBox.querySelectorAll('.message'));
+        const history = allMessages
+          .slice(-6)
+          .map(el => ({
+            role: el.classList.contains('user') ? 'user' : 'bot',
+            content: el.textContent
+          }))
+          .filter(m => !m.content.includes('loading')); // Remover mensagens de loading
+
         const response = await fetch(`${API_URL}/api/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, apiKey })
+          body: JSON.stringify({ question, apiKey, history })
         });
 
         const data = await response.json();

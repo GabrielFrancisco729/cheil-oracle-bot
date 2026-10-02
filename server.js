@@ -85,7 +85,7 @@ function validateApiKey(apiKey) {
 // FUNÇÃO: Gerar SQL com Claude usando key do usuário
 // ============================================================================
 
-async function generateSQL(question, userApiKey) {
+async function generateSQL(question, userApiKey, history = []) {
   const client = new Anthropic({
     apiKey: userApiKey,
   });
@@ -102,19 +102,36 @@ INSTRUÇÕES:
 1. Responda APENAS com uma query SQL válida para BigQuery
 2. Use os nomes corretos das tabelas com o caminho completo
 3. Não inclua explicações, apenas o SQL
-4. Se não conseguir gerar SQL, responda: "ERROR"`;
+4. Se não conseguir gerar SQL, responda: "ERROR"
+5. Considere o contexto da conversa anterior para entender referências indiretas`;
 
   try {
+    // Preparar mensagens com histórico
+    const messages = [];
+    
+    // Adicionar histórico anterior (se tiver)
+    if (history && history.length > 0) {
+      history.forEach(msg => {
+        if (msg.role && msg.content) {
+          messages.push({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content.substring(0, 500) // Limitar tamanho
+          });
+        }
+      });
+    }
+    
+    // Adicionar pergunta atual
+    messages.push({
+      role: 'user',
+      content: `Pergunta: "${question}"\n\nGere a query SQL:`
+    });
+
     const response = await client.messages.create({
       model: 'claude-sonnet-5-5',
       max_tokens: 500,
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `Pergunta: "${question}"\n\nGere a query SQL:`
-        }
-      ]
+      messages: messages
     });
 
     // Extrair texto da resposta de forma segura
@@ -216,7 +233,15 @@ Por favor, resuma esses dados de forma clara em português. Destaque os pontos p
         throw new Error('Resposta do Claude não contém bloco de texto');
       }
       
-      return textBlock.text.trim();
+      let text = textBlock.text.trim();
+      
+      // Remove markdown formatting para exibição no frontend
+      text = text.replace(/\*\*/g, '');  // Remove **bold**
+      text = text.replace(/\*(?!\w)/g, ''); // Remove *asteriscos*
+      text = text.replace(/#{1,6}\s/g, ''); // Remove headers (#, ##, etc)
+      text = text.replace(/`/g, '');        // Remove codeblocks
+      
+      return text;
     } else {
       console.error('[Format Answer Error] Resposta vazia do Claude');
       throw new Error('Resposta vazia do Claude ao formatar resposta');
@@ -264,7 +289,7 @@ app.post('/api/validate-key', (req, res) => {
 
 app.post('/api/ask', async (req, res) => {
   try {
-    const { question, apiKey } = req.body;
+    const { question, apiKey, history } = req.body;
 
     if (!apiKey || apiKey.trim().length === 0) {
       return res.status(401).json({ error: 'API Key não fornecida' });
@@ -279,7 +304,7 @@ app.post('/api/ask', async (req, res) => {
     
     let sql;
     try {
-      sql = await generateSQL(question, apiKey);
+      sql = await generateSQL(question, apiKey, history || []);
     } catch (error) {
       return res.status(400).json({
         success: false,
