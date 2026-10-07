@@ -1,36 +1,17 @@
-/**
- * BACKEND SIMPLIFICADO: Oráculo de Dados Cheil BI
- * 
- * Versão 2: Usuário fornece sua própria API Key do Claude/OpenAI
- * 
- * Funcionalidades:
- * - Sem OAuth (mais simples)
- * - Usuário coloca sua API Key
- * - Backend valida e processa
- * - Integração BigQuery
- * - Integração Claude API (com key do usuário)
- */
-
 const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
+const { Anthropic } = require('@anthropic-ai/sdk');
 const { BigQuery } = require('@google-cloud/bigquery');
-const Anthropic = require('@anthropic-ai/sdk');
-
-dotenv.config();
+const path = require('path');
 
 const app = express();
+const PORT = process.env.PORT || 10000;
 
-// CORS habilitado
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true
-}));
-
-app.use(express.json());
+// Middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ============================================================================
-// CONFIGURAÇÕES GLOBAIS
+// CONFIG
 // ============================================================================
 
 const BQ_CONFIG = {
@@ -42,47 +23,50 @@ const BQ_CONFIG = {
   }
 };
 
-// BigQuery (usa credenciais do servidor)
+// Initialize BigQuery
 let bigqueryConfig = {
-  projectId: process.env.GCP_PROJECT_ID,
+  projectId: BQ_CONFIG.projectId,
 };
 
-// Se GCP_SERVICE_ACCOUNT_JSON for uma string JSON, parsear
 if (process.env.GCP_SERVICE_ACCOUNT_JSON) {
   try {
     const serviceAccount = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_JSON);
     bigqueryConfig.credentials = serviceAccount;
   } catch (error) {
     console.error('Erro ao parsear GCP_SERVICE_ACCOUNT_JSON:', error.message);
-    // Tenta usar como caminho de arquivo
     bigqueryConfig.keyFilename = process.env.GCP_SERVICE_ACCOUNT_JSON;
   }
 }
 
 const bigquery = new BigQuery(bigqueryConfig);
 
+console.log(`╔════════════════════════════════════════╗`);
+console.log(`║   Oráculo de Dados - Cheil BI 🔮      ║`);
+console.log(`║                                        ║`);
+console.log(`║   Servidor rodando em:                 ║`);
+console.log(`║   http://localhost:${PORT}             ║`);
+console.log(`║                                        ║`);
+console.log(`║   Modo: Cada usuário usa sua API Key  ║`);
+console.log(`╚════════════════════════════════════════╝`);
+
 // ============================================================================
 // FUNÇÃO: Validar API Key
 // ============================================================================
 
 function validateApiKey(apiKey) {
-  // Validação simples - apenas checar se tem o formato correto
   if (!apiKey || apiKey.trim().length === 0) {
     return { valid: false, error: 'API Key vazia' };
   }
 
-  // Deve começar com sk-ant- (Claude/Anthropic)
   if (!apiKey.startsWith('sk-ant-')) {
     return { valid: false, error: 'API Key deve começar com sk-ant- (Claude/Anthropic)' };
   }
 
-  // Se passou nessas verificações, a key é válida
-  // O teste real será quando o usuário fizer a primeira pergunta
   return { valid: true };
 }
 
 // ============================================================================
-// FUNÇÃO: Gerar SQL com Claude usando key do usuário
+// FUNÇÃO: Gerar SQL com Claude
 // ============================================================================
 
 async function generateSQL(question, userApiKey, history = []) {
@@ -90,138 +74,56 @@ async function generateSQL(question, userApiKey, history = []) {
     apiKey: userApiKey,
   });
 
-  const systemPrompt = `Você é um expert em SQL BigQuery. RESPONDA APENAS COM SQL, SEM EXPLICAÇÕES.
+  const systemPrompt = `You are a BigQuery SQL expert. Generate ONLY valid SQL. NO explanations.
 
-SCHEMA - CORRESPONDE AO POWER BI DASHBOARD CHEIL BI:
-Projeto: ${BQ_CONFIG.projectId} | Dataset: ${BQ_CONFIG.dataset}
+CHEIL BI DATABASE (cheil-bi.apollo_gold):
 
-1. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\` (fConsolidated - MÉTRICAS)
-   COLUNAS PRINCIPAIS:
-   - Date: data
-   - DELIVERED: entregas, OPENS: aberturas, CLICKS: cliques
-   - Total_visits: visitas, Total_orders: pedidos, Revenue: receita
-   - Revenue_SEDA: receita em BRL, Total_units: unidades
-   - Product: SKU, Tracking_code: código de rastreamento
-   - Source: origem (ANALYTICS, VTEX, GA4, IOS, ANDROID, APP, WHATSAPP)
-   - CHANNEL: EMAIL, WHATSAPP, APP PUSH, WEB PUSH, PUSH
-   - DATA_SOURCE: AFFILIATE, VTEX_CARTAPP, etc
-   - COUNTRY_NAME, CAMPAIGN_SEDA, TRIGGER_SEDA
-   
-2. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.dProducts\` (PRODUTOS)
-   JOIN: fConsolidated.Product = dProducts.SKU
-   - SKU, PRODUCT, BU, SUB BU, subCATEGORY, FAMILY
-   
-3. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\` (dAllDimensions)
-   JOIN: fConsolidated.Tracking_code = dAllDimensions.TrackingCode
-   - SUB: SUBSIDIÁRIA (SEDA, MX, CE, DA, HA, WM, VD, AC) ← USE PARA FILTRAR!
-   - CAMPAIGN, CHANNEL, SEGMENT GROUP, AUDIENCE, BU CAMPAIGN, TRIGGER
-   
-MÉTRICAS DO DASHBOARD (REVENUE - CRÍTICO):
+Tables:
+1. fConsolidated: Date, Product, Tracking_code, DELIVERED, OPENS, CLICKS, Total_visits, Total_orders, Total_units, Revenue_SEDA, Source, CHANNEL, DATA_SOURCE
+2. dProducts: SKU, PRODUCT, BU, FAMILY  
+3. dAllDimensions: TrackingCode, SUB (SEDA/MX/CE/DA), CAMPAIGN, CHANNEL
 
-tRevenueCRM = ([tRevenueAA] + [tRevenueVTEX] + [tRevenueAPP] + [tRevenueWPAPP] + [tRevenueGA4] + ([tRevenueAffiliate] * 0.044)) - [tRevenueAffiliate]
+Relationships:
+- fConsolidated.Product = dProducts.SKU
+- fConsolidated.Tracking_code = dAllDimensions.TrackingCode
 
-Para calcular tRevenueCRM em SQL (é uma soma ponderada):
-- AA: SUM(Revenue_SEDA) WHERE Source = 'ANALYTICS'
-- VTEX: SUM(Revenue_SEDA) WHERE Source = 'VTEX'
-- APP: SUM(Revenue_SEDA) WHERE CHANNEL = 'APP PUSH'
-- WPAPP: SUM(Revenue_SEDA) WHERE CHANNEL = 'WEB PUSH' AND Source = 'APP'
-- GA4: SUM(Revenue_SEDA) WHERE Source LIKE 'GA4_SEASA%'
-- Affiliate: SUM(Revenue_SEDA) WHERE DATA_SOURCE = 'AFFILIATE'
-
-Fórmula final: (AA + VTEX + APP + WPAPP + GA4 + Affiliate*0.044) - Affiliate
-
-OUTRAS MÉTRICAS:
-- Entregas (DELIVERED), Aberturas (OPENS), Cliques (CLICKS)
-- Visitas (Total_visits), Pedidos (Total_orders), Unidades (Total_units)
-- Taxas: OR% = OPENS/DELIVERED, CTOR% = CLICKS/OPENS, CTR% = CLICKS/DELIVERED
-- CVR% = Total_orders/Total_visits, AOV = tRevenueCRM/Total_orders
-
-REGRA REVENUE (CRÍTICO - USAR tRevenueCRM):
-
-Se pergunta é genérica sobre "revenue" ou "receita":
-  → SEMPRE USE A FÓRMULA tRevenueCRM COMPLETA (que combina AA + VTEX + APP + WPAPP + GA4 + Affiliate*0.044 - Affiliate)
-  → Isso faz match com o dashboard Power BI
-
-Se pergunta é específica sobre uma fonte (ex: "revenue de analytics"):
-  → USE apenas aquela fonte (ex: SUM(Revenue_SEDA) where Source = 'ANALYTICS')
-
-Se pergunta menciona SEDA:
-  → USE Revenue_SEDA (em BRL)
-  → Mas se pede "revenue de seda" genérico, use tRevenueCRM com filtro SEDA
-
-COMPARAÇÕES (QUANDO APLICÁVEL):
-- Se pergunta é aberta, adicione GROUP BY para dar contexto
-- Podem ser: GROUP BY mês, produto, canal, ou subsidiary
-- Use UNION para comparar períodos se necessário
-- Sempre ORDER BY resultado DESC para TOP itens
-- Limite a 100 registros (LIMIT 100)
-
-FILTROS COMUNS:
-- MÊS ATUAL: WHERE DATE_TRUNC(fConsolidated.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
-- MÊS ANTERIOR: WHERE DATE_TRUNC(fConsolidated.Date, MONTH) = DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH)
-- SUBSIDIÁRIA SEDA: JOIN dAllDimensions WHERE dAllDimensions.SUB = 'SEDA'
-- CANAL EMAIL: WHERE fConsolidated.CHANNEL = 'EMAIL'
-- FONTE ANALYTICS: WHERE fConsolidated.Source = 'ANALYTICS'
-- PRODUTO: WHERE dProducts.PRODUCT LIKE '%nome%'
-
-ESTRATÉGIA DE QUERY - SEGUIR SEMPRE:
-
-Para pergunta "Qual o revenue de seda?" ou "Qual o revenue de seda até o mês corrente?":
-- SEMPRE fazer GROUP BY por mês (para comparar períodos)
-- SEMPRE fazer JOIN com dAllDimensions (para garantir filtro SEDA correto)
-- SEMPRE usar a FÓRMULA tRevenueCRM COMPLETA (não apenas SUM(Revenue_SEDA))
-  - Porque tRevenueCRM combina Analytics + VTEX + APP + WEB Push + GA4 + Affiliate*0.044 - Affiliate
-  - Isso faz match com o número do dashboard Power BI
-
-CALCULAR tRevenueCRM COM CTE (Common Table Expression):
-
-1. Criar CTE com cada componente usando IF simples
-2. Depois calcular fórmula final: (AA + VTEX + APP + WPAPP + GA4 + Affiliate*0.044) - Affiliate
-3. Usar DATE_TRUNC para agrupar por mês
-4. ORDER BY mês DESC
-
-Exemplo estrutura (Claude deve adaptar):
-- WITH components AS (SELECT ... FROM fConsolidated ... WHERE SUB = SEDA)
-- SELECT mes, (aa + vtex + app + wpapp + ga4 + (affiliate * 0.044)) - affiliate as tRevenueCRM
-- FROM components
-
-PARA OUTRAS QUERIES:
-- Se sobre canal: GROUP BY fc.CHANNEL
-- Se sobre produto: GROUP BY dp.PRODUCT (com JOIN dProducts)
-- Se sobre entrega/aberturas: SUM(fc.DELIVERED) ou SUM(fc.OPENS)
-- Se comparar com mês anterior: adicione WHERE DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
-
-REGRAS SIMPLES:
-1. Sempre use backticks nas table names
-2. USE CTEs para calcular tRevenueCRM quando pergunta é sobre revenue genérico
-3. Para SEDA: JOIN dAllDimensions WHERE SUB = 'SEDA'
-4. GROUP BY DATE_TRUNC para comparar períodos
+RULES:
+1. Always use backticks for table names
+2. If question mentions SEDA → filter WHERE dAllDimensions.SUB = 'SEDA'
+3. Use SUM(Revenue_SEDA) for revenue
+4. GROUP BY DATE_TRUNC(Date, MONTH) to compare periods
 5. ORDER BY DESC, LIMIT 100
 
-CONTEXTO: Se pergunta anterior foi sobre SEDA, continua SEDA
-SE ERRO: Responda: ERROR
-IMPORTANTE: APENAS SQL, sem explicações.`;
+METRICS: DELIVERED, OPENS, CLICKS, Total_visits, Total_orders, Total_units, Revenue_SEDA
+
+Example: "Revenue SEDA?"
+SELECT DATE_TRUNC(fc.Date, MONTH) as period, SUM(fc.Revenue_SEDA) as revenue
+FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
+JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
+WHERE d.SUB = 'SEDA'
+GROUP BY period ORDER BY period DESC
+
+Context: Keep filters from previous questions.
+If error: respond only "ERROR"
+ONLY SQL. NO EXPLANATIONS.`;
 
   try {
-    // Preparar mensagens com histórico
     const messages = [];
     
-    // Adicionar histórico anterior (se tiver)
     if (history && history.length > 0) {
       history.forEach(msg => {
         if (msg.role && msg.content) {
           messages.push({
             role: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.content.substring(0, 500) // Limitar tamanho
+            content: msg.content.substring(0, 300)
           });
         }
       });
     }
     
-    // Adicionar pergunta atual
     messages.push({
       role: 'user',
-      content: `Pergunta: "${question}"\n\nGere a query SQL:`
+      content: `Question: "${question}"\n\nGenerate SQL:`
     });
 
     const response = await client.messages.create({
@@ -231,9 +133,7 @@ IMPORTANTE: APENAS SQL, sem explicações.`;
       messages: messages
     });
 
-    // Extrair texto da resposta de forma segura
-    if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-      // Procura pelo primeiro bloco do tipo "text" (pode haver blocos de "thinking" primeiro)
+    if (response && response.content && Array.isArray(response.content)) {
       let textBlock = null;
       for (const block of response.content) {
         if (block.type === 'text' && block.text) {
@@ -242,14 +142,12 @@ IMPORTANTE: APENAS SQL, sem explicações.`;
         }
       }
       
-      if (!textBlock || !textBlock.text) {
-        console.error('[SQL Error] Nenhum bloco de texto encontrado');
-        throw new Error('Resposta do Claude não contém bloco de texto');
+      if (!textBlock) {
+        throw new Error('Claude did not generate SQL');
       }
+
+      let text = textBlock.text.trim();
       
-      let text = textBlock.text;
-      
-      // Remove markdown se tiver
       if (text.includes('```sql')) {
         text = text.replace(/```sql\n?/g, '').replace(/```\n?/g, '');
       }
@@ -259,15 +157,14 @@ IMPORTANTE: APENAS SQL, sem explicações.`;
       
       text = text.trim();
       
-      if (!text || text.length === 0) {
-        throw new Error('Claude gerou resposta vazia');
+      if (!text) {
+        throw new Error('Claude generated empty response');
       }
-      
-      console.log(`[SQL Generated] ${text.substring(0, 100)}...`);
+
+      console.log(`[SQL] ${text.substring(0, 80)}...`);
       return text;
     } else {
-      console.error('[SQL Error] Resposta vazia do Claude');
-      throw new Error('Resposta vazia do Claude');
+      throw new Error('Invalid Claude response');
     }
   } catch (error) {
     console.error('[SQL Error]', error.message);
@@ -276,14 +173,14 @@ IMPORTANTE: APENAS SQL, sem explicações.`;
 }
 
 // ============================================================================
-// FUNÇÃO: Executar Query no BigQuery
+// FUNÇÃO: Executar Query
 // ============================================================================
 
 async function executeQuery(sql) {
   try {
     const options = {
       query: sql,
-      location: 'US', // Dataset location is US
+      location: 'US',
     };
 
     const [rows] = await bigquery.query(options);
@@ -294,7 +191,7 @@ async function executeQuery(sql) {
 }
 
 // ============================================================================
-// FUNÇÃO: Processar resposta com Claude
+// FUNÇÃO: Formatar Resposta
 // ============================================================================
 
 async function formatAnswer(question, sqlResults, userApiKey) {
@@ -307,31 +204,16 @@ async function formatAnswer(question, sqlResults, userApiKey) {
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-5-5',
-      max_tokens: 1500,
+      max_tokens: 800,
       messages: [
         {
           role: 'user',
-          content: `Pergunta: "${question}"
-
-Resultado dos dados (JSON):
-${resultsJson}
-
-INSTRUÇÕES PARA FORMATAÇÃO:
-- Resuma os dados de forma clara em português
-- Se há múltiplas linhas: liste cada uma com valor principal
-- Se há apenas 1 valor: explique o contexto (período, categoria, etc)
-- Formato claro sem markdown (sem **, ##, etc)
-- Números em formato brasileiro (R$ 1.000,00)
-- Se há 2+ períodos: mostre a diferença em porcentagem
-- Destaque TOP 3 itens se há muitos registros
-- Máximo 500 caracteres de resposta`
+          content: `Question: "${question}"\n\nData (JSON):\n${resultsJson}\n\nSummarize clearly in Portuguese. Show numbers and comparisons if available. Keep it concise.`
         }
       ]
     });
 
-    // Extrair texto da resposta de forma segura
-    if (response && response.content && Array.isArray(response.content) && response.content.length > 0) {
-      // Procura pelo primeiro bloco do tipo "text"
+    if (response && response.content && Array.isArray(response.content)) {
       let textBlock = null;
       for (const block of response.content) {
         if (block.type === 'text' && block.text) {
@@ -340,44 +222,36 @@ INSTRUÇÕES PARA FORMATAÇÃO:
         }
       }
       
-      if (!textBlock || !textBlock.text) {
-        console.error('[Format Answer Error] Nenhum bloco de texto encontrado');
-        throw new Error('Resposta do Claude não contém bloco de texto');
+      if (!textBlock) {
+        throw new Error('Claude did not generate answer');
       }
       
       let text = textBlock.text.trim();
-      
-      // Remove markdown formatting para exibição no frontend
-      text = text.replace(/\*\*/g, '');  // Remove **bold**
-      text = text.replace(/\*(?!\w)/g, ''); // Remove *asteriscos*
-      text = text.replace(/#{1,6}\s/g, ''); // Remove headers (#, ##, etc)
-      text = text.replace(/`/g, '');        // Remove codeblocks
+      text = text.replace(/\*\*/g, '').replace(/\*(?!\w)/g, '').replace(/#{1,6}\s/g, '').replace(/`/g, '');
       
       return text;
     } else {
-      console.error('[Format Answer Error] Resposta vazia do Claude');
-      throw new Error('Resposta vazia do Claude ao formatar resposta');
+      throw new Error('Invalid Claude response');
     }
   } catch (error) {
-    console.error('[Format Answer Error]', error.message);
+    console.error('[Format Error]', error.message);
     throw error;
   }
 }
 
 // ============================================================================
-// ROTA: Validar API Key
+// ROTA: Validar Key
 // ============================================================================
 
 app.post('/api/validate-key', (req, res) => {
   try {
     const { apiKey } = req.body;
-
     const validation = validateApiKey(apiKey);
 
     if (validation.valid) {
       res.json({
         success: true,
-        message: 'API Key válida! Você pode começar a fazer perguntas.'
+        message: 'API Key accepted! You can start asking questions.'
       });
     } else {
       res.status(400).json({
@@ -385,156 +259,78 @@ app.post('/api/validate-key', (req, res) => {
         error: validation.error
       });
     }
-
   } catch (error) {
-    console.error('Erro ao validar key:', error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error('[Validate Error]', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // ============================================================================
-// ROTA: Fazer pergunta (requer API Key do usuário)
+// ROTA: Ask Question
 // ============================================================================
 
 app.post('/api/ask', async (req, res) => {
   try {
     const { question, apiKey, history } = req.body;
 
-    if (!apiKey || apiKey.trim().length === 0) {
-      return res.status(401).json({ error: 'API Key não fornecida' });
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API Key not provided' });
     }
 
     if (!question || question.trim().length === 0) {
-      return res.status(400).json({ error: 'Pergunta vazia' });
+      return res.status(400).json({ error: 'Empty question' });
     }
 
-    // 1. Gerar SQL com Claude (usando key do usuário)
-    console.log(`[User] Gerando SQL para: ${question}`);
+    console.log(`[Ask] ${question}`);
     
+    // Generate SQL
     let sql;
     try {
       sql = await generateSQL(question, apiKey, history || []);
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        error: `Erro ao gerar SQL: ${error.message}`
-      });
+      return res.status(400).json({ error: `Error generating SQL: ${error.message}` });
     }
 
-    // Validar se conseguiu gerar SQL
-    if (!sql || sql.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Não consegui gerar uma query SQL para sua pergunta (resposta vazia)'
-      });
+    // Validate SQL
+    if (!sql || sql.includes('ERROR')) {
+      return res.status(400).json({ error: 'Could not generate SQL for your question' });
     }
 
-    if (sql.includes('ERROR')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Não consegui gerar uma query SQL para sua pergunta'
-      });
-    }
-
-    // 2. Executar SQL no BigQuery
-    console.log(`[User] Executando SQL`);
+    // Execute query
     let results;
     try {
       results = await executeQuery(sql);
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        error: `Erro ao executar query: ${error.message}`
-      });
+      return res.status(400).json({ error: `Query execution error: ${error.message}` });
     }
 
-    // 3. Formatar resposta com Claude
-    console.log(`[User] Formatando resposta`);
+    // Format answer
     let answer;
     try {
       answer = await formatAnswer(question, results, apiKey);
     } catch (error) {
-      return res.status(400).json({
-        success: false,
-        error: `Erro ao formatar resposta: ${error.message}`
-      });
+      return res.status(400).json({ error: `Error formatting answer: ${error.message}` });
     }
 
-    res.json({
-      success: true,
-      question,
-      answer,
-      rowsReturned: results.length,
-      sqlUsed: sql
-    });
-
+    res.json({ success: true, answer });
   } catch (error) {
-    console.error('Erro ao processar pergunta:', error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao processar pergunta'
-    });
+    console.error('[Ask Error]', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
 // ============================================================================
-// ROTA: Health check
+// ROTA: Health Check
 // ============================================================================
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    bigquery: 'connected',
-    mode: 'user-api-key'
-  });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ============================================================================
-// ROTA: Servir Frontend (index.html)
+// START SERVER
 // ============================================================================
 
-app.use(express.static('public'));
-
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
-});
-
-// ============================================================================
-// ERROR HANDLING
-// ============================================================================
-
-app.use((err, req, res, next) => {
-  console.error('Erro:', err);
-  res.status(500).json({
-    error: 'Erro interno do servidor',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
-
-// ============================================================================
-// INICIAR SERVIDOR
-// ============================================================================
-
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════╗
-║   Oráculo de Dados - Cheil BI 🔮      ║
-║                                        ║
-║   Servidor rodando em:                 ║
-║   http://localhost:${PORT}             ║
-║                                        ║
-║   Modo: Cada usuário usa sua API Key  ║
-╚════════════════════════════════════════╝
-  `);
-  
-  // Validações de startup
-  if (!process.env.GCP_PROJECT_ID) console.warn('⚠️  GCP_PROJECT_ID não configurado');
-  if (!process.env.GCP_SERVICE_ACCOUNT_JSON) console.warn('⚠️  GCP_SERVICE_ACCOUNT_JSON não configurado');
+  console.log(`✅ Server running on port ${PORT}`);
 });
-
-module.exports = app;
