@@ -120,14 +120,15 @@ MÉTRICAS DO DASHBOARD (REVENUE - CRÍTICO):
 
 tRevenueCRM = ([tRevenueAA] + [tRevenueVTEX] + [tRevenueAPP] + [tRevenueWPAPP] + [tRevenueGA4] + ([tRevenueAffiliate] * 0.044)) - [tRevenueAffiliate]
 
-Breakdown (TRADUZIR PARA SQL):
-- tRevenueAA = SUM(Revenue_SEDA) where Source = 'ANALYTICS'
-- tRevenueVTEX = SUM(Revenue_SEDA) where Source = 'VTEX'
-- tRevenueAPP = SUM(Revenue_SEDA) where CHANNEL = 'APP PUSH'
-- tRevenueWPAPP = SUM(Revenue_SEDA) where CHANNEL = 'WEB PUSH' AND Source = 'APP'
-- tRevenueGA4 = SUM(Revenue_SEDA) where Source LIKE 'GA4_SEASA%'
-- tRevenueAffiliate = SUM(Revenue_SEDA) where DATA_SOURCE = 'AFFILIATE'
-- tRevenueCRM = (AA + VTEX + APP + WPAPP + GA4 + (Affiliate * 0.044)) - Affiliate
+Para calcular tRevenueCRM em SQL (é uma soma ponderada):
+- AA: SUM(Revenue_SEDA) WHERE Source = 'ANALYTICS'
+- VTEX: SUM(Revenue_SEDA) WHERE Source = 'VTEX'
+- APP: SUM(Revenue_SEDA) WHERE CHANNEL = 'APP PUSH'
+- WPAPP: SUM(Revenue_SEDA) WHERE CHANNEL = 'WEB PUSH' AND Source = 'APP'
+- GA4: SUM(Revenue_SEDA) WHERE Source LIKE 'GA4_SEASA%'
+- Affiliate: SUM(Revenue_SEDA) WHERE DATA_SOURCE = 'AFFILIATE'
+
+Fórmula final: (AA + VTEX + APP + WPAPP + GA4 + Affiliate*0.044) - Affiliate
 
 OUTRAS MÉTRICAS:
 - Entregas (DELIVERED), Aberturas (OPENS), Cliques (CLICKS)
@@ -172,24 +173,17 @@ Para pergunta "Qual o revenue de seda?" ou "Qual o revenue de seda até o mês c
   - Porque tRevenueCRM combina Analytics + VTEX + APP + WEB Push + GA4 + Affiliate*0.044 - Affiliate
   - Isso faz match com o número do dashboard Power BI
 
-Query modelo para SEDA REVENUE com tRevenueCRM:
-SELECT 
-  DATE_TRUNC(fc.Date, MONTH) as periodo,
-  ROUND(
-    (SUM(CASE WHEN fc.Source = 'ANALYTICS' THEN fc.Revenue_SEDA ELSE 0 END) +
-     SUM(CASE WHEN fc.Source = 'VTEX' THEN fc.Revenue_SEDA ELSE 0 END) +
-     SUM(CASE WHEN d.CHANNEL = 'APP PUSH' THEN fc.Revenue_SEDA ELSE 0 END) +
-     SUM(CASE WHEN d.CHANNEL = 'WEB PUSH' AND fc.Source = 'APP' THEN fc.Revenue_SEDA ELSE 0 END) +
-     SUM(CASE WHEN fc.Source LIKE 'GA4_SEASA%' THEN fc.Revenue_SEDA ELSE 0 END) +
-     (SUM(CASE WHEN fc.DATA_SOURCE = 'AFFILIATE' THEN fc.Revenue_SEDA ELSE 0 END) * 0.044)) -
-    SUM(CASE WHEN fc.DATA_SOURCE = 'AFFILIATE' THEN fc.Revenue_SEDA ELSE 0 END), 2
-  ) as tRevenueCRM
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d 
-  ON fc.Tracking_code = d.TrackingCode
-WHERE d.SUB = 'SEDA'
-GROUP BY DATE_TRUNC(fc.Date, MONTH)
-ORDER BY periodo DESC
+CALCULAR tRevenueCRM COM CTE (Common Table Expression):
+
+1. Criar CTE com cada componente usando IF simples
+2. Depois calcular fórmula final: (AA + VTEX + APP + WPAPP + GA4 + Affiliate*0.044) - Affiliate
+3. Usar DATE_TRUNC para agrupar por mês
+4. ORDER BY mês DESC
+
+Exemplo estrutura (Claude deve adaptar):
+- WITH components AS (SELECT ... FROM fConsolidated ... WHERE SUB = SEDA)
+- SELECT mes, (aa + vtex + app + wpapp + ga4 + (affiliate * 0.044)) - affiliate as tRevenueCRM
+- FROM components
 
 PARA OUTRAS QUERIES:
 - Se sobre canal: GROUP BY fc.CHANNEL
@@ -197,16 +191,16 @@ PARA OUTRAS QUERIES:
 - Se sobre entrega/aberturas: SUM(fc.DELIVERED) ou SUM(fc.OPENS)
 - Se comparar com mês anterior: adicione WHERE DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
 
-REGRAS OBRIGATÓRIAS:
-1. Sempre use backticks: \`cheil-bi.apollo_gold.fConsolidated\`
-2. Para SEDA SEMPRE: INNER JOIN dAllDimensions WHERE d.SUB = 'SEDA'
-3. Para Revenue SEDA: SUM(fc.Revenue_SEDA)
-4. Resultados sempre ORDER BY DESC e LIMIT 100
+REGRAS SIMPLES:
+1. Sempre use backticks nas table names
+2. USE CTEs para calcular tRevenueCRM quando pergunta é sobre revenue genérico
+3. Para SEDA: JOIN dAllDimensions WHERE SUB = 'SEDA'
+4. GROUP BY DATE_TRUNC para comparar períodos
+5. ORDER BY DESC, LIMIT 100
 
-CONTEXTO: Se pergunta anterior foi sobre SEDA, continua sendo SEDA
-ERRO: Se SQL inválido, responda: ERROR
-
-IMPORTANTE: Gere APENAS SQL puro. Sem explicações, sem markdown.`;
+CONTEXTO: Se pergunta anterior foi sobre SEDA, continua SEDA
+SE ERRO: Responda: ERROR
+IMPORTANTE: APENAS SQL, sem explicações.`;
 
   try {
     // Preparar mensagens com histórico
