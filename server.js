@@ -175,54 +175,57 @@ LIMIT 5`;
 // ============================================================================
 
 async function formatSummary(bigNumbers, campaigns, products, apiKey) {
-  const client = new Anthropic({ apiKey });
-
-  const data = {
-    bigNumbers: bigNumbers[0] || {},
-    topCampaigns: campaigns || [],
-    topProducts: products || []
+  const bn = bigNumbers[0] || {};
+  
+  // Formatar números
+  const fmt = (n) => {
+    if (!n) return '0';
+    if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(2) + 'K';
+    return Math.round(n).toString();
+  };
+  
+  const fmtMoney = (n) => {
+    if (!n) return 'R$ 0,00';
+    return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
   };
 
-  try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-5-5',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `Formatte esse resumo executivo em português, bem legível:
+  const summary = `
+RESUMO EXECUTIVO DE DESEMPENHO
 
-BIG NUMBERS:
-- Entregas: ${data.bigNumbers.delivered || 0}
-- Aberturas: ${data.bigNumbers.opens || 0} (Taxa: ${(data.bigNumbers.open_rate * 100).toFixed(2)}%)
-- Cliques: ${data.bigNumbers.clicks || 0}
-- Visitas: ${data.bigNumbers.visits || 0}
-- Pedidos: ${data.bigNumbers.orders || 0} (CVR: ${(data.bigNumbers.cvr * 100).toFixed(2)}%)
-- Unidades: ${data.bigNumbers.units || 0}
-- Revenue: R$ ${data.bigNumbers.revenue || 0}
+═══════════════════════════════════
 
-TOP 5 CAMPANHAS:
-${campaigns.map((c, i) => `${i+1}. ${c.campaign}: R$ ${c.revenue} (${c.delivered} entregas, ${(c.open_rate * 100).toFixed(2)}% OR)`).join('\n')}
+1. PRINCIPAIS INDICADORES
 
-TOP 5 PRODUTOS:
-${products.map((p, i) => `${i+1}. ${p.product}: R$ ${p.revenue} (${p.delivered} entregas, ${(p.open_rate * 100).toFixed(2)}% OR)`).join('\n')}
+Entregas:     ${fmt(bn.delivered)}
+Aberturas:    ${fmt(bn.opens)} (Taxa: ${((bn.open_rate || 0) * 100).toFixed(2)}%)
+Cliques:      ${fmt(bn.clicks)} (CTR: ${((bn.click_rate || 0) * 100).toFixed(2)}%)
+Visitas:      ${fmt(bn.visits)}
+Pedidos:      ${fmt(bn.orders)} (Conversão: ${((bn.cvr || 0) * 100).toFixed(2)}%)
+Unidades:     ${fmt(bn.units)}
+Revenue:      ${fmtMoney(bn.revenue)}
 
-Faça um resumo executivo bem estruturado, sem markdown, bem profissional.`
-      }]
-    });
+═══════════════════════════════════
 
-    let summary = '';
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        summary = block.text.trim();
-        break;
-      }
-    }
+2. TOP 5 CAMPANHAS
 
-    return summary;
-  } catch (error) {
-    console.error('[Format Error]', error.message);
-    return JSON.stringify(data, null, 2);
-  }
+${campaigns && campaigns.length > 0 ? campaigns.map((c, i) => 
+  `${i+1}. ${c.campaign || 'N/A'}
+   Revenue: ${fmtMoney(c.revenue)} | Entregas: ${fmt(c.delivered)} | OR: ${((c.open_rate || 0) * 100).toFixed(2)}% | Pedidos: ${fmt(c.orders)}`
+).join('\n\n') : 'Sem dados'}
+
+═══════════════════════════════════
+
+3. TOP 5 PRODUTOS
+
+${products && products.length > 0 ? products.map((p, i) => 
+  `${i+1}. ${p.product}
+   Revenue: ${fmtMoney(p.revenue)} | Entregas: ${fmt(p.delivered)} | OR: ${((p.open_rate || 0) * 100).toFixed(2)}% | Pedidos: ${fmt(p.orders)}`
+).join('\n\n') : 'Sem dados'}
+
+═══════════════════════════════════`;
+
+  return summary;
 }
 
 // ============================================================================
