@@ -130,17 +130,18 @@
     }
     
     .summary-content {
-      background: var(--primary-dark);
-      color: #00ff00;
-      padding: 20px;
+      background: #fafbfc;
+      color: var(--text-dark);
+      padding: 24px;
       border-radius: 8px;
-      line-height: 1.6;
+      line-height: 1.7;
       margin-bottom: 20px;
       white-space: pre-wrap;
       font-size: 13px;
-      font-family: 'Courier New', monospace;
-      border: 1px solid #333;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      border: 1px solid var(--border-light);
       overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
     .buttons-row {
@@ -206,7 +207,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🔮 Oráculo de Dados</h1>
+      <h1>Oráculo de Dados</h1>
       <p>Cheil BI - Análise de Performance</p>
       <button id="disconnectBtn" class="disconnect-btn" style="display:none;">Desconectar</button>
     </div>
@@ -257,7 +258,8 @@
     const API_URL = window.location.origin;
     const API_KEY_STORAGE = 'oracle_api_key';
     
-    let selectedSubsidiary = null;
+    let selectedSubsidiaries = [];
+    let selectedPeriod = null;
     let selectedPeriod = null;
     let apiKey = null;
     
@@ -296,10 +298,38 @@
     
     function attachFilterListeners() {
       document.querySelectorAll('[data-sub]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('[data-sub]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          selectedSubsidiary = btn.dataset.sub;
+        btn.addEventListener('click', (e) => {
+          const sub = btn.dataset.sub;
+          
+          if (sub === 'LAO') {
+            // LAO desseleciona todas as outras
+            selectedSubsidiaries = ['LAO'];
+            document.querySelectorAll('[data-sub]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+          } else {
+            // Remove LAO se tiver selecionado
+            selectedSubsidiaries = selectedSubsidiaries.filter(s => s !== 'LAO');
+            document.querySelectorAll('[data-sub="LAO"]').forEach(b => b.classList.remove('active'));
+            
+            // Multi-select: Ctrl/Cmd + Click
+            if (e.ctrlKey || e.metaKey) {
+              if (selectedSubsidiaries.includes(sub)) {
+                selectedSubsidiaries = selectedSubsidiaries.filter(s => s !== sub);
+                btn.classList.remove('active');
+              } else {
+                selectedSubsidiaries.push(sub);
+                btn.classList.add('active');
+              }
+            } else {
+              // Click normal: seleciona apenas essa
+              selectedSubsidiaries = [sub];
+              document.querySelectorAll('[data-sub]').forEach(b => {
+                if (b !== btn) b.classList.remove('active');
+              });
+              btn.classList.add('active');
+            }
+          }
+          
           updateStartBtn();
         });
       });
@@ -315,7 +345,7 @@
     }
     
     function updateStartBtn() {
-      startBtn.disabled = !selectedSubsidiary || !selectedPeriod;
+      startBtn.disabled = !selectedSubsidiaries.length || !selectedPeriod;
     }
     
     startBtn.addEventListener('click', async () => {
@@ -343,7 +373,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             apiKey,
-            context: { subsidiary: selectedSubsidiary, period: selectedPeriod }
+            context: { subsidiaries: selectedSubsidiaries, period: selectedPeriod }
           })
         });
         
@@ -363,7 +393,15 @@
     }
     
     function updateContextBadge() {
-      const subLabel = selectedSubsidiary === 'LAO' ? 'LAO (Todas)' : selectedSubsidiary;
+      let subLabel;
+      if (selectedSubsidiaries.includes('LAO')) {
+        subLabel = 'LAO (Todas)';
+      } else {
+        subLabel = selectedSubsidiaries.length > 1 
+          ? `${selectedSubsidiaries.length} subs` 
+          : selectedSubsidiaries[0];
+      }
+      
       const periodLabels = {
         current_week: 'Semana Atual',
         last_week: 'Semana Passada',

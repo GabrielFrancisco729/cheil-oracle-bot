@@ -46,7 +46,7 @@ app.get('/api/subsidiaries', async (req, res) => {
     `;
     
     const [rows] = await bigquery.query({ query, location: 'US' });
-    const subs = rows.map(row => row.SUB).filter(Boolean);
+    const subs = rows.map(row => row.SUB).filter(Boolean).filter(sub => sub !== '-');
     
     res.json({ success: true, subsidiaries: subs });
   } catch (error) {
@@ -72,13 +72,14 @@ async function executeQuery(sql) {
 // ============================================================================
 
 function getBigNumbersSQL(context) {
-  const subsidiary = context.subsidiary || 'SEDA';
-  const period = context.period || 'current_month';
-  const isLao = subsidiary === 'LAO';
+  const subsidiaries = context.subsidiaries || ['LAO'];
+  const isLao = subsidiaries.includes('LAO');
   
-  const whereClause = isLao 
-    ? `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`
-    : `WHERE d.SUB = '${subsidiary}' AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`;
+  let subClause = isLao 
+    ? ''
+    : `AND d.SUB IN (${subsidiaries.map(s => `'${s}'`).join(',')})`;
+  
+  const whereClause = `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${subClause}`;
   
   return `
 SELECT 
@@ -108,12 +109,14 @@ ${whereClause}`;
 // ============================================================================
 
 function getTopCampaignsSQL(context) {
-  const subsidiary = context.subsidiary || 'SEDA';
-  const isLao = subsidiary === 'LAO';
+  const subsidiaries = context.subsidiaries || ['LAO'];
+  const isLao = subsidiaries.includes('LAO');
   
-  const whereClause = isLao 
-    ? `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`
-    : `WHERE d.SUB = '${subsidiary}' AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`;
+  let subClause = isLao 
+    ? ''
+    : `AND d.SUB IN (${subsidiaries.map(s => `'${s}'`).join(',')})`;
+  
+  const whereClause = `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${subClause}`;
   
   return `
 SELECT 
@@ -141,12 +144,14 @@ LIMIT 5`;
 // ============================================================================
 
 function getTopProductsSQL(context) {
-  const subsidiary = context.subsidiary || 'SEDA';
-  const isLao = subsidiary === 'LAO';
+  const subsidiaries = context.subsidiaries || ['LAO'];
+  const isLao = subsidiaries.includes('LAO');
   
-  const whereClause = isLao 
-    ? `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`
-    : `WHERE d.SUB = '${subsidiary}' AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`;
+  let subClause = isLao 
+    ? ''
+    : `AND d.SUB IN (${subsidiaries.map(s => `'${s}'`).join(',')})`;
+  
+  const whereClause = `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${subClause}`;
   
   return `
 SELECT 
@@ -177,6 +182,9 @@ LIMIT 5`;
 async function formatSummary(bigNumbers, campaigns, products, apiKey) {
   const bn = bigNumbers[0] || {};
   
+  // Calcular AOV
+  bn.aov = bn.orders > 0 ? bn.revenue / bn.orders : 0;
+  
   // Formatar números
   const fmt = (n) => {
     if (!n) return '0';
@@ -191,39 +199,39 @@ async function formatSummary(bigNumbers, campaigns, products, apiKey) {
   };
 
   const summary = `
-RESUMO EXECUTIVO DE DESEMPENHO
+RESUMO EXECUTIVO
 
-═══════════════════════════════════
+──────────────────────────────────
 
-1. PRINCIPAIS INDICADORES
+INDICADORES PRINCIPAIS
 
-Entregas:     ${fmt(bn.delivered)}
-Aberturas:    ${fmt(bn.opens)} (Taxa: ${((bn.open_rate || 0) * 100).toFixed(2)}%)
-Cliques:      ${fmt(bn.clicks)} (CTR: ${((bn.click_rate || 0) * 100).toFixed(2)}%)
-Visitas:      ${fmt(bn.visits)}
-Pedidos:      ${fmt(bn.orders)} (Conversão: ${((bn.cvr || 0) * 100).toFixed(2)}%)
-Unidades:     ${fmt(bn.units)}
-Revenue:      ${fmtMoney(bn.revenue)}
+Deliveries:   ${fmt(bn.delivered)}
+Opens:        ${fmt(bn.opens)}        OR%: ${((bn.open_rate || 0) * 100).toFixed(2)}%
+Clicks:       ${fmt(bn.clicks)}        CTR%: ${((bn.click_rate || 0) * 100).toFixed(2)}%
+Visits:       ${fmt(bn.visits)}        CVR%: ${((bn.cvr || 0) * 100).toFixed(2)}%
+Orders:       ${fmt(bn.orders)}
+Units:        ${fmt(bn.units)}
+Revenue:      ${fmtMoney(bn.revenue)}    AOV: ${fmtMoney(bn.aov || 0)}
 
-═══════════════════════════════════
+──────────────────────────────────
 
-2. TOP 5 CAMPANHAS
+TOP 5 CAMPANHAS
 
 ${campaigns && campaigns.length > 0 ? campaigns.map((c, i) => 
   `${i+1}. ${c.campaign || 'N/A'}
-   Revenue: ${fmtMoney(c.revenue)} | Entregas: ${fmt(c.delivered)} | OR: ${((c.open_rate || 0) * 100).toFixed(2)}% | Pedidos: ${fmt(c.orders)}`
+   Revenue: ${fmtMoney(c.revenue)} | Deliveries: ${fmt(c.delivered)} | OR: ${((c.open_rate || 0) * 100).toFixed(2)}% | Orders: ${fmt(c.orders)}`
 ).join('\n\n') : 'Sem dados'}
 
-═══════════════════════════════════
+──────────────────────────────────
 
-3. TOP 5 PRODUTOS
+TOP 5 PRODUTOS
 
 ${products && products.length > 0 ? products.map((p, i) => 
   `${i+1}. ${p.product}
-   Revenue: ${fmtMoney(p.revenue)} | Entregas: ${fmt(p.delivered)} | OR: ${((p.open_rate || 0) * 100).toFixed(2)}% | Pedidos: ${fmt(p.orders)}`
+   Revenue: ${fmtMoney(p.revenue)} | Deliveries: ${fmt(p.delivered)} | OR: ${((p.open_rate || 0) * 100).toFixed(2)}% | Orders: ${fmt(p.orders)}`
 ).join('\n\n') : 'Sem dados'}
 
-═══════════════════════════════════`;
+──────────────────────────────────`;
 
   return summary;
 }
@@ -238,7 +246,8 @@ app.post('/api/summary', async (req, res) => {
 
     if (!apiKey) return res.status(401).json({ error: 'API Key required' });
 
-    console.log(`[Summary] ${context?.subsidiary || 'SEDA'} | ${context?.period || 'current_month'}`);
+    const subs = context?.subsidiaries || ['LAO'];
+    console.log(`[Summary] ${subs.join(', ')} | ${context?.period || 'current_month'}`);
 
     // Executar 3 queries
     const bigNumbers = await executeQuery(getBigNumbersSQL(context));
