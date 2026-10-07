@@ -151,7 +151,7 @@ JOIN cheil-bi.apollo_gold.dAllDimensions d ON fc.Tracking_code = d.TrackingCode
 WHERE d.SUB = 'SEDA' 
   AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
 
-REGRA: SEMPRE use backticks para table names: `cheil-bi.apollo_gold.fConsolidated`
+REGRA: Use backticks ao redor dos table names (exemplo: backtick + cheil-bi.apollo_gold.fConsolidated + backtick)
 
 CONTEXTO CONVERSACIONAL: Se mencionou SEDA antes, continua usando SEDA na query
 SE NÃO CONSEGUIR GERAR SQL VÁLIDO: Responda apenas: ERROR
