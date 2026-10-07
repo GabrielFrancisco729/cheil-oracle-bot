@@ -117,17 +117,36 @@ Projeto: ${BQ_CONFIG.projectId} | Dataset: ${BQ_CONFIG.dataset}
    - CAMPAIGN, CHANNEL, SEGMENT GROUP, AUDIENCE, BU CAMPAIGN, TRIGGER
    
 MÉTRICAS DO DASHBOARD (REVENUE - CRÍTICO):
-- Revenue_SEDA = Receita em BRL (Real) - USE SEMPRE para SEDA
-- Revenue = Receita em moeda original (USD) - USE para outras subsidiárias ou sem especificação
+
+tRevenueCRM = ([tRevenueAA] + [tRevenueVTEX] + [tRevenueAPP] + [tRevenueWPAPP] + [tRevenueGA4] + ([tRevenueAffiliate] * 0.044)) - [tRevenueAffiliate]
+
+Breakdown (TRADUZIR PARA SQL):
+- tRevenueAA = SUM(Revenue_SEDA) where Source = 'ANALYTICS'
+- tRevenueVTEX = SUM(Revenue_SEDA) where Source = 'VTEX'
+- tRevenueAPP = SUM(Revenue_SEDA) where CHANNEL = 'APP PUSH'
+- tRevenueWPAPP = SUM(Revenue_SEDA) where CHANNEL = 'WEB PUSH' AND Source = 'APP'
+- tRevenueGA4 = SUM(Revenue_SEDA) where Source LIKE 'GA4_SEASA%'
+- tRevenueAffiliate = SUM(Revenue_SEDA) where DATA_SOURCE = 'AFFILIATE'
+- tRevenueCRM = (AA + VTEX + APP + WPAPP + GA4 + (Affiliate * 0.044)) - Affiliate
+
+OUTRAS MÉTRICAS:
 - Entregas (DELIVERED), Aberturas (OPENS), Cliques (CLICKS)
 - Visitas (Total_visits), Pedidos (Total_orders), Unidades (Total_units)
 - Taxas: OR% = OPENS/DELIVERED, CTOR% = CLICKS/OPENS, CTR% = CLICKS/DELIVERED
-- CVR% = Total_orders/Total_visits, AOV = Revenue/Total_orders
+- CVR% = Total_orders/Total_visits, AOV = tRevenueCRM/Total_orders
 
-REGRA REVENUE (CRÍTICO):
-- Pergunta menciona SEDA? → USE Revenue_SEDA (em BRL)
-- Pergunta NÃO menciona SEDA? → USE Revenue (normal)
-- NUNCA use ambos na mesma query
+REGRA REVENUE (CRÍTICO - USAR tRevenueCRM):
+
+Se pergunta é genérica sobre "revenue" ou "receita":
+  → SEMPRE USE A FÓRMULA tRevenueCRM COMPLETA (que combina AA + VTEX + APP + WPAPP + GA4 + Affiliate*0.044 - Affiliate)
+  → Isso faz match com o dashboard Power BI
+
+Se pergunta é específica sobre uma fonte (ex: "revenue de analytics"):
+  → USE apenas aquela fonte (ex: SUM(Revenue_SEDA) where Source = 'ANALYTICS')
+
+Se pergunta menciona SEDA:
+  → USE Revenue_SEDA (em BRL)
+  → Mas se pede "revenue de seda" genérico, use tRevenueCRM com filtro SEDA
 
 COMPARAÇÕES (QUANDO APLICÁVEL):
 - Se pergunta é aberta, adicione GROUP BY para dar contexto
@@ -149,19 +168,28 @@ ESTRATÉGIA DE QUERY - SEGUIR SEMPRE:
 Para pergunta "Qual o revenue de seda?" ou "Qual o revenue de seda até o mês corrente?":
 - SEMPRE fazer GROUP BY por mês (para comparar períodos)
 - SEMPRE fazer JOIN com dAllDimensions (para garantir filtro SEDA correto)
-- SEMPRE usar Revenue_SEDA (que está em BRL)
+- SEMPRE usar a FÓRMULA tRevenueCRM COMPLETA (não apenas SUM(Revenue_SEDA))
+  - Porque tRevenueCRM combina Analytics + VTEX + APP + WEB Push + GA4 + Affiliate*0.044 - Affiliate
+  - Isso faz match com o número do dashboard Power BI
 
-Query modelo para SEDA:
+Query modelo para SEDA REVENUE com tRevenueCRM:
 SELECT 
   DATE_TRUNC(fc.Date, MONTH) as periodo,
-  SUM(fc.Revenue_SEDA) as revenue
+  ROUND(
+    (SUM(CASE WHEN fc.Source = 'ANALYTICS' THEN fc.Revenue_SEDA ELSE 0 END) +
+     SUM(CASE WHEN fc.Source = 'VTEX' THEN fc.Revenue_SEDA ELSE 0 END) +
+     SUM(CASE WHEN d.CHANNEL = 'APP PUSH' THEN fc.Revenue_SEDA ELSE 0 END) +
+     SUM(CASE WHEN d.CHANNEL = 'WEB PUSH' AND fc.Source = 'APP' THEN fc.Revenue_SEDA ELSE 0 END) +
+     SUM(CASE WHEN fc.Source LIKE 'GA4_SEASA%' THEN fc.Revenue_SEDA ELSE 0 END) +
+     (SUM(CASE WHEN fc.DATA_SOURCE = 'AFFILIATE' THEN fc.Revenue_SEDA ELSE 0 END) * 0.044)) -
+    SUM(CASE WHEN fc.DATA_SOURCE = 'AFFILIATE' THEN fc.Revenue_SEDA ELSE 0 END), 2
+  ) as tRevenueCRM
 FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-INNER JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d 
+LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d 
   ON fc.Tracking_code = d.TrackingCode
 WHERE d.SUB = 'SEDA'
 GROUP BY DATE_TRUNC(fc.Date, MONTH)
 ORDER BY periodo DESC
-LIMIT 12
 
 PARA OUTRAS QUERIES:
 - Se sobre canal: GROUP BY fc.CHANNEL
