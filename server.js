@@ -124,27 +124,17 @@ MÉTRICAS DO DASHBOARD (REVENUE - CRÍTICO):
 - Taxas: OR% = OPENS/DELIVERED, CTOR% = CLICKS/OPENS, CTR% = CLICKS/DELIVERED
 - CVR% = Total_orders/Total_visits, AOV = Revenue/Total_orders
 
-REGRA REVENUE (IMPORTANTE):
-- Se query filtra por SUB = 'SEDA' → USE SUM(Revenue_SEDA) EM BRL
-- Se query NÃO menciona SEDA → USE SUM(Revenue) normal
-- NUNCA misture Revenue_SEDA e Revenue na mesma query
+REGRA REVENUE (CRÍTICO):
+- Pergunta menciona SEDA? → USE Revenue_SEDA (em BRL)
+- Pergunta NÃO menciona SEDA? → USE Revenue (normal)
+- NUNCA use ambos na mesma query
 
-COMPARAÇÕES AUTOMÁTICAS (OBRIGATÓRIO):
-Quando pergunta é aberta ("Quanto de revenue?"), faça comparações:
-- GROUP BY mês (atual vs mês anterior) → UNION ou CASE WHEN
-- GROUP BY produto → top 5 produtos
-- GROUP BY canal → breakdown por canal
-- GROUP BY subsidiary (se aplicável)
-- Sempre inclua WoW, MoM, YoY se disponível
-EXEMPLO para meses:
-  SELECT 
-    DATE_TRUNC(fConsolidated.Date, MONTH) as mes,
-    SUM(Revenue_SEDA) as revenue
-  FROM fConsolidated
-  JOIN dAllDimensions ON fConsolidated.Tracking_code = dAllDimensions.TrackingCode
-  WHERE dAllDimensions.SUB = 'SEDA'
-  GROUP BY mes
-  ORDER BY mes DESC
+COMPARAÇÕES (QUANDO APLICÁVEL):
+- Se pergunta é aberta, adicione GROUP BY para dar contexto
+- Podem ser: GROUP BY mês, produto, canal, ou subsidiary
+- Use UNION para comparar períodos se necessário
+- Sempre ORDER BY resultado DESC para TOP itens
+- Limite a 100 registros (LIMIT 100)
 
 FILTROS COMUNS:
 - MÊS ATUAL: WHERE DATE_TRUNC(fConsolidated.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
@@ -154,14 +144,19 @@ FILTROS COMUNS:
 - FONTE ANALYTICS: WHERE fConsolidated.Source = 'ANALYTICS'
 - PRODUTO: WHERE dProducts.PRODUCT LIKE '%nome%'
 
-PADRÃO DE QUERY INTELIGENTE:
-1. Se pergunta é simples ("Qual o revenue?") → faça GROUP BY DATE para comparar meses
-2. Se pergunta é sobre produto → GROUP BY dProducts.PRODUCT
-3. Se pergunta é sobre canal → GROUP BY fConsolidated.CHANNEL
-4. SEMPRE agregue múltiplas dimensões para dar contexto
+PADRÃO DE QUERY SIMPLES - EXEMPLO:
+SELECT SUM(Revenue_SEDA) as revenue
+FROM cheil-bi.apollo_gold.fConsolidated fc
+JOIN cheil-bi.apollo_gold.dAllDimensions d ON fc.Tracking_code = d.TrackingCode
+WHERE d.SUB = 'SEDA' 
+  AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
 
-CONTEXTO CONVERSACIONAL: Mantenha filtros anteriores (se falou de SEDA, continua SEDA)
-ERRO? Responda: ERROR`;
+REGRA: SEMPRE use backticks para table names: `cheil-bi.apollo_gold.fConsolidated`
+
+CONTEXTO CONVERSACIONAL: Se mencionou SEDA antes, continua usando SEDA na query
+SE NÃO CONSEGUIR GERAR SQL VÁLIDO: Responda apenas: ERROR
+
+IMPORTANTE: Gere APENAS SQL. Nada mais. Sem explicações.`;
 
   try {
     // Preparar mensagens com histórico
@@ -204,7 +199,7 @@ ERRO? Responda: ERROR`;
       }
       
       if (!textBlock || !textBlock.text) {
-        console.error('[SQL Error] Nenhum bloco de texto encontrado em:', response.content);
+        console.error('[SQL Error] Nenhum bloco de texto encontrado');
         throw new Error('Resposta do Claude não contém bloco de texto');
       }
       
@@ -214,8 +209,15 @@ ERRO? Responda: ERROR`;
       if (text.includes('```sql')) {
         text = text.replace(/```sql\n?/g, '').replace(/```\n?/g, '');
       }
+      if (text.includes('```')) {
+        text = text.replace(/```\n?/g, '');
+      }
       
       text = text.trim();
+      
+      if (!text || text.length === 0) {
+        throw new Error('Claude gerou resposta vazia');
+      }
       
       console.log(`[SQL Generated] ${text.substring(0, 100)}...`);
       return text;
@@ -270,30 +272,15 @@ async function formatAnswer(question, sqlResults, userApiKey) {
 Resultado dos dados (JSON):
 ${resultsJson}
 
-INSTRUÇÕES PARA FORMATAÇÃO DA RESPOSTA:
-1. Se há múltiplas linhas (períodos, produtos, canais):
-   - Crie uma listagem CLARA mostrando cada item
-   - Se há 2 períodos (atual vs anterior): mostre comparação e variação %
-   - Se há múltiplos produtos: destaque TOP 3
-   - Se há múltiplos canais: mostre breakdown por canal
-
-2. Se há apenas 1 valor:
-   - NÃO retorne só o número!
-   - Se tem data, compare com período anterior
-   - Se não há contexto, explique limitações dos dados
-
-3. SEMPRE inclua:
-   - Valor principal/total
-   - Comparação com período anterior (variação %)
-   - Distribuição por categoria principal (se aplicável)
-
-4. Formato:
-   - Claro e legível (sem markdown complexo)
-   - Números em formato brasileiro (R$ 1.234,56)
-   - Porcentagens com 2 casas decimais
-   - Nenhum asterisco ou caractere de markdown
-
-Ser conciso mas informativo. Forneça contexto, não apenas números.`
+INSTRUÇÕES PARA FORMATAÇÃO:
+- Resuma os dados de forma clara em português
+- Se há múltiplas linhas: liste cada uma com valor principal
+- Se há apenas 1 valor: explique o contexto (período, categoria, etc)
+- Formato claro sem markdown (sem **, ##, etc)
+- Números em formato brasileiro (R$ 1.000,00)
+- Se há 2+ períodos: mostre a diferença em porcentagem
+- Destaque TOP 3 itens se há muitos registros
+- Máximo 500 caracteres de resposta`
         }
       ]
     });
