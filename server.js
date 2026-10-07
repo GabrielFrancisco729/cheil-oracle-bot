@@ -144,19 +144,41 @@ FILTROS COMUNS:
 - FONTE ANALYTICS: WHERE fConsolidated.Source = 'ANALYTICS'
 - PRODUTO: WHERE dProducts.PRODUCT LIKE '%nome%'
 
-PADRÃO DE QUERY SIMPLES - EXEMPLO:
-SELECT SUM(Revenue_SEDA) as revenue
-FROM cheil-bi.apollo_gold.fConsolidated fc
-JOIN cheil-bi.apollo_gold.dAllDimensions d ON fc.Tracking_code = d.TrackingCode
-WHERE d.SUB = 'SEDA' 
-  AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+ESTRATÉGIA DE QUERY - SEGUIR SEMPRE:
 
-REGRA: Use backticks ao redor dos table names (exemplo: backtick + cheil-bi.apollo_gold.fConsolidated + backtick)
+Para pergunta "Qual o revenue de seda?" ou "Qual o revenue de seda até o mês corrente?":
+- SEMPRE fazer GROUP BY por mês (para comparar períodos)
+- SEMPRE fazer JOIN com dAllDimensions (para garantir filtro SEDA correto)
+- SEMPRE usar Revenue_SEDA (que está em BRL)
 
-CONTEXTO CONVERSACIONAL: Se mencionou SEDA antes, continua usando SEDA na query
-SE NÃO CONSEGUIR GERAR SQL VÁLIDO: Responda apenas: ERROR
+Query modelo para SEDA:
+SELECT 
+  DATE_TRUNC(fc.Date, MONTH) as periodo,
+  SUM(fc.Revenue_SEDA) as revenue
+FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
+INNER JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d 
+  ON fc.Tracking_code = d.TrackingCode
+WHERE d.SUB = 'SEDA'
+GROUP BY DATE_TRUNC(fc.Date, MONTH)
+ORDER BY periodo DESC
+LIMIT 12
 
-IMPORTANTE: Gere APENAS SQL. Nada mais. Sem explicações.`;
+PARA OUTRAS QUERIES:
+- Se sobre canal: GROUP BY fc.CHANNEL
+- Se sobre produto: GROUP BY dp.PRODUCT (com JOIN dProducts)
+- Se sobre entrega/aberturas: SUM(fc.DELIVERED) ou SUM(fc.OPENS)
+- Se comparar com mês anterior: adicione WHERE DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
+
+REGRAS OBRIGATÓRIAS:
+1. Sempre use backticks: \`cheil-bi.apollo_gold.fConsolidated\`
+2. Para SEDA SEMPRE: INNER JOIN dAllDimensions WHERE d.SUB = 'SEDA'
+3. Para Revenue SEDA: SUM(fc.Revenue_SEDA)
+4. Resultados sempre ORDER BY DESC e LIMIT 100
+
+CONTEXTO: Se pergunta anterior foi sobre SEDA, continua sendo SEDA
+ERRO: Se SQL inválido, responda: ERROR
+
+IMPORTANTE: Gere APENAS SQL puro. Sem explicações, sem markdown.`;
 
   try {
     // Preparar mensagens com histórico
