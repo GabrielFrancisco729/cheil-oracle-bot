@@ -287,13 +287,8 @@
       <div id="filterScreen">
         <div class="filter-section">
           <label>Qual é a subsidiária?</label>
-          <div class="filter-options">
-            <button class="filter-btn" data-sub="SEDA">🇧🇷 SEDA</button>
-            <button class="filter-btn" data-sub="MX">🇲🇽 MX</button>
-            <button class="filter-btn" data-sub="CE">🏢 CE</button>
-            <button class="filter-btn" data-sub="DA">🏢 DA</button>
-            <button class="filter-btn" data-sub="HA">🏢 HA</button>
-            <button class="filter-btn" data-sub="WM">🏢 WM</button>
+          <div id="subsidariesContainer" class="filter-options">
+            <button class="filter-btn" data-sub="LAO">🌍 LAO (Todas)</button>
           </div>
         </div>
         
@@ -344,30 +339,29 @@
     const questionInput = document.getElementById('questionInput');
     const contextBadge = document.getElementById('contextBadge');
     
-    // EVENT LISTENERS
-    filterBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sub = btn.dataset.sub;
-        const period = btn.dataset.period;
-        
-        if (sub) {
-          document.querySelectorAll('[data-sub]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          selectedSubsidiary = sub;
-        }
-        
-        if (period) {
-          document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          selectedPeriod = period;
-        }
-        
-        updateStartBtn();
-      });
-    });
-    
     function updateStartBtn() {
       startBtn.disabled = !selectedSubsidiary || !selectedPeriod;
+    }
+    
+    // EVENT LISTENERS - Delegado para todos os filtros
+    function attachFilterListeners() {
+      document.querySelectorAll('[data-sub]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-sub]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedSubsidiary = btn.dataset.sub;
+          updateStartBtn();
+        });
+      });
+      
+      document.querySelectorAll('[data-period]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedPeriod = btn.dataset.period;
+          updateStartBtn();
+        });
+      });
     }
     
     startBtn.addEventListener('click', () => {
@@ -382,7 +376,8 @@
       chatScreen.style.display = 'block';
       disconnectBtn.style.display = 'block';
       updateContextBadge();
-      addSystemMessage(`Analisando dados de ${selectedSubsidiary} - ${getPeriodLabel()}`);
+      // Sistema preparado - sem mensagem de contexto
+      questionInput.focus();
     });
     
     sendBtn.addEventListener('click', async () => {
@@ -448,7 +443,8 @@
     }
     
     function updateContextBadge() {
-      contextBadge.textContent = `${selectedSubsidiary} • ${getPeriodLabel()}`;
+      const subLabel = selectedSubsidiary === 'LAO' ? 'Todas as Subs' : selectedSubsidiary;
+      contextBadge.textContent = `${subLabel} • ${getPeriodLabel()}`;
     }
     
     function getPeriodLabel() {
@@ -462,6 +458,45 @@
       };
       return labels[selectedPeriod] || selectedPeriod;
     }
+    
+    // Carregar subsidiárias da API
+    async function loadSubsidiaries() {
+      try {
+        const response = await fetch(`${API_URL}/api/subsidiaries`);
+        const data = await response.json();
+        
+        if (data.success && data.subsidiaries && data.subsidiaries.length > 0) {
+          const container = document.getElementById('subsidariesContainer');
+          
+          // Limpa o LAO padrão
+          container.innerHTML = '<button class="filter-btn" data-sub="LAO">🌍 LAO (Todas)</button>';
+          
+          // Adiciona cada subsidiária
+          data.subsidiaries.forEach(sub => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            btn.dataset.sub = sub;
+            btn.textContent = sub;
+            container.appendChild(btn);
+          });
+          
+          // Re-attach event listeners
+          attachFilterListeners();
+        }
+      } catch (error) {
+        console.error('Error loading subsidiaries:', error);
+      }
+    }
+    
+    // Carregar subsidiárias ao iniciar
+    loadSubsidiaries();
+    
+    // Fallback - attach listeners mesmo se API falhar
+    setTimeout(() => {
+      if (!selectedSubsidiary) {
+        attachFilterListeners();
+      }
+    }, 500);
   </script>
 </body>
 </html>
