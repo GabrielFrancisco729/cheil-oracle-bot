@@ -218,7 +218,7 @@
         <div class="filter-section">
           <label>Qual é a subsidiária?</label>
           <div id="subsidariesContainer" class="filter-options">
-            <button class="filter-btn" data-sub="LAO">🌍 LAO</button>
+            <button class="filter-btn" data-sub="LAO">LAO</button>
           </div>
         </div>
         
@@ -279,7 +279,7 @@
         
         if (data.success && data.subsidiaries && data.subsidiaries.length > 0) {
           const container = document.getElementById('subsidariesContainer');
-          container.innerHTML = '<button class="filter-btn" data-sub="LAO">🌍 LAO</button>';
+          container.innerHTML = '<button class="filter-btn" data-sub="LAO">LAO</button>';
           
           data.subsidiaries.forEach(sub => {
             const btn = document.createElement('button');
@@ -289,14 +289,15 @@
             container.appendChild(btn);
           });
           
-          attachFilterListeners();
+          attachSubsidiaryListeners();
+          attachPeriodListeners();
         }
       } catch (error) {
         console.error('Error loading subsidiaries:', error);
       }
     }
     
-    function attachFilterListeners() {
+    function attachSubsidiaryListeners() {
       document.querySelectorAll('[data-sub]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const sub = btn.dataset.sub;
@@ -333,7 +334,9 @@
           updateStartBtn();
         });
       });
-      
+    }
+    
+    function attachPeriodListeners() {
       document.querySelectorAll('[data-period]').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
@@ -428,6 +431,7 @@
     });
     
     loadSubsidiaries();
+    attachPeriodListeners();
   </script>
 </body>
 </html>
