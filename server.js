@@ -92,31 +92,55 @@ async function generateSQL(question, userApiKey, history = []) {
 
   const systemPrompt = `Você é um expert em SQL BigQuery. RESPONDA APENAS COM SQL, SEM EXPLICAÇÕES.
 
-SCHEMA DO BANCO:
+SCHEMA - CORRESPONDE AO POWER BI DASHBOARD CHEIL BI:
 Projeto: ${BQ_CONFIG.projectId} | Dataset: ${BQ_CONFIG.dataset}
 
-TABELAS:
-1. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\` (fConsolidated - FATOS/MÉTRICAS)
-   Métricas: SENT, DELIVERED, CLICKS, OPENS, OPT-OUT, Revenue, Total_units, Total_visits, Total_orders
-   Dimensões-chave: Date, Product (SKU), Tracking_code, COUNTRY_NAME, CHANNEL, Source
+1. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.main}\` (fConsolidated - MÉTRICAS)
+   COLUNAS PRINCIPAIS:
+   - Date: data
+   - DELIVERED: entregas, OPENS: aberturas, CLICKS: cliques
+   - Total_visits: visitas, Total_orders: pedidos, Revenue: receita
+   - Revenue_SEDA: receita em BRL, Total_units: unidades
+   - Product: SKU, Tracking_code: código de rastreamento
+   - Source: origem (ANALYTICS, VTEX, GA4, IOS, ANDROID, APP, WHATSAPP)
+   - CHANNEL: EMAIL, WHATSAPP, APP PUSH, WEB PUSH, PUSH
+   - DATA_SOURCE: AFFILIATE, VTEX_CARTAPP, etc
+   - COUNTRY_NAME, CAMPAIGN_SEDA, TRIGGER_SEDA
    
-2. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.dProducts\` (LOOKUP PRODUTOS)
-   JOIN com: fConsolidated.Product = dProducts.SKU
-   Colunas úteis: SKU, PRODUCT, BU, SUB BU, subCATEGORY, FAMILY
+2. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.dProducts\` (PRODUTOS)
+   JOIN: fConsolidated.Product = dProducts.SKU
+   - SKU, PRODUCT, BU, SUB BU, subCATEGORY, FAMILY
    
-3. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\` (dAllDimensions - CONTEXTO/DIMENSÕES)
-   JOIN com: fConsolidated.Tracking_code = dAllDimensions.TrackingCode
-   SUBSIDIÁRIAS (coluna SUB): SEDA, MX, CE, DA, etc
-   Colunas úteis: TrackingCode, SUB (SUBSIDIÁRIA), CAMPAIGN, CHANNEL, SEGMENT GROUP, AUDIENCE, BU CAMPAIGN, TRIGGER
+3. \`${BQ_CONFIG.projectId}.${BQ_CONFIG.dataset}.${BQ_CONFIG.tables.dimensions}\` (dAllDimensions)
+   JOIN: fConsolidated.Tracking_code = dAllDimensions.TrackingCode
+   - SUB: SUBSIDIÁRIA (SEDA, MX, CE, DA, HA, WM, VD, AC) ← USE PARA FILTRAR!
+   - CAMPAIGN, CHANNEL, SEGMENT GROUP, AUDIENCE, BU CAMPAIGN, TRIGGER
    
-REGRAS:
-- Use agregações (SUM, COUNT, AVG) para métricas
-- Filtre por data: WHERE DATE_TRUNC(Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) (mês atual)
-- SUBSIDIÁRIAS (em dAllDimensions.SUB): SEDA, MX, CE, DA, etc → use WHERE dAllDimensions.SUB = 'SEDA'
-- Sempre específico: se mencionar "seda", filtre por dAllDimensions.SUB = 'SEDA'
-- Ordene resultados por métrica relevante (Revenue DESC, DELIVERED DESC, etc)
-- Considere histórico conversacional para referências indiretas (ex: se falou de "seda" antes, continua sendo SEDA)
-- ERRO? Responda: ERROR`;
+MÉTRICAS DO DASHBOARD:
+- Entregas (DELIVERED), Aberturas (OPENS), Cliques (CLICKS)
+- Visitas (Total_visits), Pedidos (Total_orders), Receita (Revenue/Revenue_SEDA)
+- Unidades (Total_units)
+- Taxas: OR% = OPENS/DELIVERED, CTOR% = CLICKS/OPENS, CTR% = CLICKS/DELIVERED
+- CVR% = Total_orders/Total_visits, AOV = Revenue/Total_orders
+
+FILTROS COMUNS:
+- MÊS ATUAL: WHERE DATE_TRUNC(fConsolidated.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+- SUBSIDIÁRIA SEDA: JOIN dAllDimensions WHERE dAllDimensions.SUB = 'SEDA'
+- CANAL EMAIL: WHERE fConsolidated.CHANNEL = 'EMAIL'
+- FONTE ANALYTICS: WHERE fConsolidated.Source = 'ANALYTICS'
+- PRODUTO ESPECÍFICO: WHERE dProducts.PRODUCT LIKE '%nome%'
+
+PADRÃO DE QUERY:
+- SELECT SUM(métrica) AS resultado
+- FROM fConsolidated
+- LEFT JOIN dProducts ON fConsolidated.Product = dProducts.SKU
+- LEFT JOIN dAllDimensions ON fConsolidated.Tracking_code = dAllDimensions.TrackingCode
+- WHERE {filtros}
+- GROUP BY {dimensões se necessário}
+- ORDER BY resultado DESC LIMIT 1000
+
+CONTEXTO CONVERSACIONAL: Mantenha filtros anteriores (se falou de SEDA, continua SEDA)
+ERRO? Responda: ERROR`;
 
   try {
     // Preparar mensagens com histórico
