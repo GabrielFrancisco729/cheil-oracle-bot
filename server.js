@@ -64,9 +64,8 @@ async function generateSQL(question, apiKey, context = {}) {
   const subsidiary = context.subsidiary || 'SEDA';
   const isLao = subsidiary === 'LAO';
   
-  // Construir filtro WHERE dinamicamente
-  const whereClause = isLao ? '' : `WHERE d.SUB = '${subsidiary}'`;
-  const andClause = isLao ? '' : `AND d.SUB = '${subsidiary}'`;
+  // Construir filtro WHERE dinamicamente - CORRETO
+  const subFilter = isLao ? '' : `d.SUB = '${subsidiary}' AND`;
   
   const isRevenue = /revenue|receita|faturamento|ganho/i.test(question);
   const isDelivery = /deliver|entrega|enviado/i.test(question);
@@ -74,78 +73,57 @@ async function generateSQL(question, apiKey, context = {}) {
   let sql = '';
   
   if (isRevenue) {
+    // Revenue com UNION ALL: comparação + top produtos + top campanhas
     sql = `
-WITH revenue_data AS (
-  SELECT 
-    DATE_TRUNC(fc.Date, MONTH) as mes,
-    ROUND(
-      (SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
-       SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
-       SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
-       SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
-       SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
-       (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
-      SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2
-    ) as tRevenueCRM
-  FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-  LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-  ${whereClause}
-  GROUP BY mes
-)
-SELECT 'REVENUE' as metric, mes, ROUND(tRevenueCRM, 2) as value FROM revenue_data ORDER BY mes DESC LIMIT 2
+SELECT 'REVENUE' as tipo, DATE_TRUNC(fc.Date, MONTH) as mes, ROUND(
+    (SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
+     SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
+     SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
+     SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
+     SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
+     (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
+    SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as valor
+FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
+LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
+WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
+GROUP BY mes ORDER BY mes DESC
 UNION ALL
-SELECT 'TOP_PRODUCTS' as metric, NULL as mes, CONCAT(dp.PRODUCT, ': R$ ', ROUND(SUM(fc.Revenue_SEDA), 2)) as value
+SELECT 'TOP_PRODUTOS' as tipo, NULL, CONCAT(dp.PRODUCT, ': R$ ', ROUND(SUM(fc.Revenue_SEDA), 2))
 FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
 JOIN \`cheil-bi.apollo_gold.dProducts\` dp ON fc.Product = dp.SKU
 LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${andClause}
-GROUP BY dp.PRODUCT
-ORDER BY SUM(fc.Revenue_SEDA) DESC
-LIMIT 3
+WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+GROUP BY dp.PRODUCT ORDER BY SUM(fc.Revenue_SEDA) DESC LIMIT 3
 UNION ALL
-SELECT 'TOP_CAMPAIGNS' as metric, NULL as mes, CONCAT(IFNULL(d.CAMPAIGN, 'N/A'), ': R$ ', ROUND(SUM(fc.Revenue_SEDA), 2)) as value
+SELECT 'TOP_CAMPANHAS' as tipo, NULL, CONCAT(IFNULL(d.CAMPAIGN, 'N/A'), ': R$ ', ROUND(SUM(fc.Revenue_SEDA), 2))
 FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
 LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${andClause}
-GROUP BY d.CAMPAIGN
-ORDER BY SUM(fc.Revenue_SEDA) DESC
-LIMIT 3`;
+WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+GROUP BY d.CAMPAIGN ORDER BY SUM(fc.Revenue_SEDA) DESC LIMIT 3`;
   } else if (isDelivery) {
     sql = `
-SELECT 'DELIVERIES' as type, DATE_TRUNC(fc.Date, MONTH) as mes, SUM(fc.DELIVERED) as value
+SELECT 'DELIVERIES' as tipo, DATE_TRUNC(fc.Date, MONTH) as mes, SUM(fc.DELIVERED) as valor
 FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
 LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-${whereClause}
-GROUP BY mes
-ORDER BY mes DESC
-LIMIT 2
+WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
+GROUP BY mes ORDER BY mes DESC
 UNION ALL
-SELECT 'TOP_PRODUCTS' as type, NULL as mes, CONCAT(dp.PRODUCT, ': ', CAST(SUM(fc.DELIVERED) AS STRING)) as value
+SELECT 'TOP_PRODUTOS' as tipo, NULL, CONCAT(dp.PRODUCT, ': ', CAST(SUM(fc.DELIVERED) AS STRING))
 FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
 JOIN \`cheil-bi.apollo_gold.dProducts\` dp ON fc.Product = dp.SKU
 LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${andClause}
-GROUP BY dp.PRODUCT
-ORDER BY SUM(fc.DELIVERED) DESC
-LIMIT 3`;
+WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+GROUP BY dp.PRODUCT ORDER BY SUM(fc.DELIVERED) DESC LIMIT 3`;
   } else {
     sql = `
-SELECT 
-  'OVERVIEW' as type,
-  DATE_TRUNC(fc.Date, MONTH) as mes,
-  ROUND(SUM(fc.Revenue_SEDA), 2) as revenue,
-  SUM(fc.DELIVERED) as delivered,
-  SUM(fc.OPENS) as opens,
-  ROUND(SUM(fc.OPENS) / SUM(fc.DELIVERED), 4) as open_rate,
-  SUM(fc.CLICKS) as clicks,
-  ROUND(SUM(fc.CLICKS) / SUM(fc.OPENS), 4) as click_rate,
-  SUM(fc.Total_orders) as orders
+SELECT DATE_TRUNC(fc.Date, MONTH) as mes, ROUND(SUM(fc.Revenue_SEDA), 2) as revenue,
+  SUM(fc.DELIVERED) as delivered, SUM(fc.OPENS) as opens, SUM(fc.CLICKS) as clicks,
+  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
+  ROUND(SUM(fc.CLICKS) / NULLIF(SUM(fc.OPENS), 0), 4) as click_rate
 FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
 LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-${whereClause}
-GROUP BY mes
-ORDER BY mes DESC
-LIMIT 3`;
+WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
+GROUP BY mes ORDER BY mes DESC`;
   }
   
   console.log(`[SQL] Generated for: ${question.substring(0, 60)}...`);
@@ -177,10 +155,10 @@ async function formatAnswer(question, results, apiKey) {
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-5-5',
-      max_tokens: 600,
+      max_tokens: 500,
       messages: [{
         role: 'user',
-        content: `Pergunta: "${question}"\n\nDados:\n${resultsText}\n\nResponda em português. Mostre: valor principal, variação vs período anterior (%), top 3 itens, principais rates. Seja direto. Sem markdown.`
+        content: `Pergunta: "${question}"\n\nDados:\n${resultsText}\n\nResuma em português: valor principal (primeiro linha), variação % se houver 2+ períodos. Seja bem conciso, máximo 3 linhas. Sem markdown, sem listas.`
       }]
     });
 
