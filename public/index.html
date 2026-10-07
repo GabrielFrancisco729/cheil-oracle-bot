@@ -12,9 +12,6 @@
       --primary-light: #ffffff;
       --accent-purple: #6b5fb3;
       --accent-blue: #5b7cfa;
-      --accent-pink: #ff6b9d;
-      --success: #51cf66;
-      --warning: #ffd43b;
       --bg-gray: #f8f9fa;
       --border-light: #e9ecef;
       --text-dark: #212529;
@@ -22,21 +19,18 @@
     }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, var(--accent-purple) 0%, #8b7cc8 100%);
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       padding: 20px;
     }
     
     .container {
+      max-width: 1200px;
+      margin: 0 auto;
       background: var(--primary-light);
       border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      max-width: 600px;
-      width: 100%;
       overflow: hidden;
     }
     
@@ -48,29 +42,28 @@
       border-bottom: 4px solid var(--accent-purple);
     }
     
-    .header h1 {
-      font-size: 28px;
-      margin-bottom: 5px;
-      font-weight: 600;
+    .header h1 { font-size: 28px; margin-bottom: 5px; }
+    .header p { font-size: 14px; color: #aaa; }
+    
+    .disconnect-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      background: var(--text-light);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
     }
     
-    .header p {
-      font-size: 14px;
-      color: #aaa;
-    }
+    .content { padding: 30px; }
     
-    .content {
-      padding: 30px;
-    }
-    
-    /* FILTROS INICIAIS */
-    #filterScreen {
-      display: block;
-    }
-    
-    #chatScreen {
-      display: none;
-    }
+    #filterScreen { display: block; }
+    #summaryScreen { display: none; }
+    #chatScreen { display: none; }
     
     .filter-section {
       margin-bottom: 30px;
@@ -88,7 +81,7 @@
     
     .filter-options {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 10px;
     }
     
@@ -104,16 +97,8 @@
       color: var(--text-dark);
     }
     
-    .filter-btn:hover {
-      border-color: var(--accent-purple);
-      background: #f0e6ff;
-    }
-    
-    .filter-btn.active {
-      background: var(--accent-purple);
-      color: white;
-      border-color: var(--accent-purple);
-    }
+    .filter-btn:hover { border-color: var(--accent-purple); background: #f0e6ff; }
+    .filter-btn.active { background: var(--accent-purple); color: white; border-color: var(--accent-purple); }
     
     .start-btn {
       width: 100%;
@@ -129,103 +114,55 @@
       margin-top: 20px;
     }
     
-    .start-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(107, 95, 179, 0.4);
-    }
+    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(107, 95, 179, 0.4); }
+    .start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     
-    .start-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    /* CHAT */
-    .chat-box {
-      height: 400px;
-      overflow-y: auto;
-      background: var(--bg-gray);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-      border: 1px solid var(--border-light);
-    }
-    
-    .message {
-      margin-bottom: 12px;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    
-    .message.user {
+    /* SUMMARY SCREEN */
+    .context-badge {
+      display: inline-block;
       background: var(--accent-blue);
       color: white;
-      margin-left: 20px;
-      text-align: right;
-    }
-    
-    .message.bot {
-      background: var(--primary-light);
-      color: var(--text-dark);
-      margin-right: 20px;
-      border: 1px solid var(--border-light);
-    }
-    
-    .message.bot.error {
-      background: #ffe0e0;
-      color: #c92a2a;
-      border-color: #ff8787;
-    }
-    
-    .message.system {
-      background: var(--warning);
-      color: var(--text-dark);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      margin-bottom: 20px;
       font-weight: 500;
-      text-align: center;
-      margin: 0 0;
     }
     
-    .loading {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: var(--accent-blue);
-      border-radius: 50%;
-      animation: loading 1.4s infinite;
+    .summary-content {
+      background: var(--bg-gray);
+      padding: 20px;
+      border-radius: 8px;
+      line-height: 1.8;
+      color: var(--text-dark);
+      margin-bottom: 20px;
+      white-space: pre-wrap;
+      font-size: 14px;
     }
     
-    .loading:nth-child(2) { animation-delay: 0.2s; }
-    .loading:nth-child(3) { animation-delay: 0.4s; }
-    
-    @keyframes loading {
-      0%, 80%, 100% { opacity: 0.3; }
-      40% { opacity: 1; }
-    }
-    
-    .input-area {
+    .buttons-row {
       display: flex;
       gap: 10px;
+      margin-top: 20px;
     }
     
-    #questionInput {
+    .btn-secondary {
       flex: 1;
       padding: 12px;
-      border: 2px solid var(--border-light);
+      background: var(--border-light);
+      color: var(--text-dark);
+      border: none;
       border-radius: 8px;
-      font-size: 14px;
-      font-family: inherit;
-      transition: border-color 0.2s;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
     }
     
-    #questionInput:focus {
-      outline: none;
-      border-color: var(--accent-purple);
-    }
+    .btn-secondary:hover { background: #dee2e6; }
     
-    .send-btn {
-      padding: 12px 24px;
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
       background: var(--accent-purple);
       color: white;
       border: none;
@@ -235,42 +172,31 @@
       transition: all 0.2s;
     }
     
-    .send-btn:hover {
-      background: #5a4f99;
+    .btn-primary:hover { background: #5a4f99; }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      font-size: 14px;
+      color: var(--text-light);
     }
     
-    .send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .context-badge {
+    .loading-dot {
       display: inline-block;
+      width: 8px;
+      height: 8px;
       background: var(--accent-blue);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      margin-bottom: 16px;
-      font-weight: 500;
+      border-radius: 50%;
+      animation: loading 1.4s infinite;
+      margin: 0 4px;
     }
     
-    .disconnect-btn {
-      padding: 8px 16px;
-      background: var(--text-light);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      position: absolute;
-      top: 20px;
-      right: 20px;
-    }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
     
-    .disconnect-btn:hover {
-      background: var(--text-dark);
+    @keyframes loading {
+      0%, 80%, 100% { opacity: 0.3; }
+      40% { opacity: 1; }
     }
   </style>
 </head>
@@ -283,37 +209,42 @@
     </div>
     
     <div class="content">
-      <!-- TELA DE FILTROS -->
+      <!-- FILTROS -->
       <div id="filterScreen">
         <div class="filter-section">
           <label>Qual é a subsidiária?</label>
           <div id="subsidariesContainer" class="filter-options">
-            <button class="filter-btn" data-sub="LAO">🌍 LAO (Todas)</button>
+            <button class="filter-btn" data-sub="LAO">🌍 LAO</button>
           </div>
         </div>
         
         <div class="filter-section">
           <label>Qual período?</label>
           <div class="filter-options">
-            <button class="filter-btn" data-period="current_week">📅 Semana Atual</button>
-            <button class="filter-btn" data-period="last_week">📅 Semana Passada</button>
-            <button class="filter-btn" data-period="current_month">📊 Mês Corrente</button>
-            <button class="filter-btn" data-period="last_month">📊 Mês Passado</button>
-            <button class="filter-btn" data-period="custom">⚙️ Outro</button>
-            <button class="filter-btn" data-period="all_time">📈 Todo Período</button>
+            <button class="filter-btn" data-period="current_week">Semana Atual</button>
+            <button class="filter-btn" data-period="last_week">Semana Passada</button>
+            <button class="filter-btn" data-period="current_month">Mês Corrente</button>
+            <button class="filter-btn" data-period="last_month">Mês Passado</button>
+            <button class="filter-btn" data-period="all_time">Todo Período</button>
           </div>
         </div>
         
-        <button id="startBtn" class="start-btn" disabled>Começar Análise</button>
+        <button id="startBtn" class="start-btn" disabled>Gerar Resumo</button>
       </div>
       
-      <!-- TELA DE CHAT -->
-      <div id="chatScreen">
+      <!-- RESUMO -->
+      <div id="summaryScreen">
         <div id="contextBadge" class="context-badge"></div>
-        <div id="chatBox" class="chat-box"></div>
-        <div class="input-area">
-          <input type="text" id="questionInput" placeholder="Faça uma pergunta sobre seus dados...">
-          <button id="sendBtn" class="send-btn">Enviar</button>
+        
+        <div id="loadingIndicator" class="loading" style="display:none;">
+          <div>Carregando análise<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>
+        </div>
+        
+        <div id="summaryContent" class="summary-content"></div>
+        
+        <div class="buttons-row">
+          <button class="btn-secondary" onclick="backToFilters()">Alterar Filtros</button>
+          <button class="btn-primary" onclick="showChat()">Fazer Perguntas</button>
         </div>
       </div>
     </div>
@@ -326,24 +257,40 @@
     let selectedSubsidiary = null;
     let selectedPeriod = null;
     let apiKey = null;
-    let messages = [];
     
-    // Elementos
     const filterScreen = document.getElementById('filterScreen');
-    const chatScreen = document.getElementById('chatScreen');
-    const filterBtns = document.querySelectorAll('.filter-btn');
+    const summaryScreen = document.getElementById('summaryScreen');
     const startBtn = document.getElementById('startBtn');
-    const sendBtn = document.getElementById('sendBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
-    const chatBox = document.getElementById('chatBox');
-    const questionInput = document.getElementById('questionInput');
     const contextBadge = document.getElementById('contextBadge');
+    const summaryContent = document.getElementById('summaryContent');
+    const loadingIndicator = document.getElementById('loadingIndicator');
     
-    function updateStartBtn() {
-      startBtn.disabled = !selectedSubsidiary || !selectedPeriod;
+    // Carregar subsidiárias
+    async function loadSubsidiaries() {
+      try {
+        const response = await fetch(`${API_URL}/api/subsidiaries`);
+        const data = await response.json();
+        
+        if (data.success && data.subsidiaries && data.subsidiaries.length > 0) {
+          const container = document.getElementById('subsidariesContainer');
+          container.innerHTML = '<button class="filter-btn" data-sub="LAO">🌍 LAO</button>';
+          
+          data.subsidiaries.forEach(sub => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            btn.dataset.sub = sub;
+            btn.textContent = sub;
+            container.appendChild(btn);
+          });
+          
+          attachFilterListeners();
+        }
+      } catch (error) {
+        console.error('Error loading subsidiaries:', error);
+      }
     }
     
-    // EVENT LISTENERS - Delegado para todos os filtros
     function attachFilterListeners() {
       document.querySelectorAll('[data-sub]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -364,7 +311,11 @@
       });
     }
     
-    startBtn.addEventListener('click', () => {
+    function updateStartBtn() {
+      startBtn.disabled = !selectedSubsidiary || !selectedPeriod;
+    }
+    
+    startBtn.addEventListener('click', async () => {
       apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
         apiKey = prompt('Insira sua API Key do Claude (sk-ant-...):');
@@ -373,130 +324,69 @@
       }
       
       filterScreen.style.display = 'none';
-      chatScreen.style.display = 'block';
+      summaryScreen.style.display = 'block';
       disconnectBtn.style.display = 'block';
       updateContextBadge();
-      // Sistema preparado - sem mensagem de contexto
-      questionInput.focus();
+      loadSummary();
     });
     
-    sendBtn.addEventListener('click', async () => {
-      const question = questionInput.value.trim();
-      if (!question) return;
-      
-      addMessage('user', question);
-      questionInput.value = '';
-      sendBtn.disabled = true;
+    async function loadSummary() {
+      loadingIndicator.style.display = 'block';
+      summaryContent.innerHTML = '';
       
       try {
-        const response = await fetch(`${API_URL}/api/ask`, {
+        const response = await fetch(`${API_URL}/api/summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            question,
             apiKey,
-            history: messages.filter(m => m.role !== 'system'),
             context: { subsidiary: selectedSubsidiary, period: selectedPeriod }
           })
         });
         
         const data = await response.json();
         
+        loadingIndicator.style.display = 'none';
+        
         if (data.success) {
-          addMessage('bot', data.answer);
+          summaryContent.textContent = data.summary;
         } else {
-          addMessage('bot error', `❌ ${data.error}`);
+          summaryContent.textContent = `Erro: ${data.error}`;
         }
       } catch (error) {
-        addMessage('bot error', `❌ Erro: ${error.message}`);
-      } finally {
-        sendBtn.disabled = false;
-        questionInput.focus();
+        loadingIndicator.style.display = 'none';
+        summaryContent.textContent = `Erro: ${error.message}`;
       }
-    });
+    }
     
-    questionInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendBtn.click();
-    });
+    function updateContextBadge() {
+      const subLabel = selectedSubsidiary === 'LAO' ? 'LAO (Todas)' : selectedSubsidiary;
+      const periodLabels = {
+        current_week: 'Semana Atual',
+        last_week: 'Semana Passada',
+        current_month: 'Mês Corrente',
+        last_month: 'Mês Passado',
+        all_time: 'Todo Período'
+      };
+      contextBadge.textContent = `${subLabel} • ${periodLabels[selectedPeriod] || selectedPeriod}`;
+    }
+    
+    function backToFilters() {
+      filterScreen.style.display = 'block';
+      summaryScreen.style.display = 'none';
+      disconnectBtn.style.display = 'none';
+    }
+    
+    function showChat() {
+      alert('Chat de perguntas - em desenvolvimento!');
+    }
     
     disconnectBtn.addEventListener('click', () => {
       localStorage.removeItem(API_KEY_STORAGE);
       location.reload();
     });
     
-    function addMessage(role, content) {
-      messages.push({ role, content });
-      const msgEl = document.createElement('div');
-      msgEl.className = `message ${role}`;
-      msgEl.textContent = content;
-      chatBox.appendChild(msgEl);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-    
-    function addSystemMessage(text) {
-      messages.push({ role: 'system', content: text });
-      const msgEl = document.createElement('div');
-      msgEl.className = 'message system';
-      msgEl.textContent = text;
-      chatBox.appendChild(msgEl);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-    
-    function updateContextBadge() {
-      const subLabel = selectedSubsidiary === 'LAO' ? 'Todas as Subs' : selectedSubsidiary;
-      contextBadge.textContent = `${subLabel} • ${getPeriodLabel()}`;
-    }
-    
-    function getPeriodLabel() {
-      const labels = {
-        current_week: 'Semana Atual',
-        last_week: 'Semana Passada',
-        current_month: 'Mês Corrente',
-        last_month: 'Mês Passado',
-        custom: 'Período Customizado',
-        all_time: 'Todo Período'
-      };
-      return labels[selectedPeriod] || selectedPeriod;
-    }
-    
-    // Carregar subsidiárias da API
-    async function loadSubsidiaries() {
-      try {
-        const response = await fetch(`${API_URL}/api/subsidiaries`);
-        const data = await response.json();
-        
-        if (data.success && data.subsidiaries && data.subsidiaries.length > 0) {
-          const container = document.getElementById('subsidariesContainer');
-          
-          // Limpa o LAO padrão
-          container.innerHTML = '<button class="filter-btn" data-sub="LAO">🌍 LAO (Todas)</button>';
-          
-          // Adiciona cada subsidiária
-          data.subsidiaries.forEach(sub => {
-            const btn = document.createElement('button');
-            btn.className = 'filter-btn';
-            btn.dataset.sub = sub;
-            btn.textContent = sub;
-            container.appendChild(btn);
-          });
-          
-          // Re-attach event listeners
-          attachFilterListeners();
-        }
-      } catch (error) {
-        console.error('Error loading subsidiaries:', error);
-      }
-    }
-    
-    // Carregar subsidiárias ao iniciar
     loadSubsidiaries();
-    
-    // Fallback - attach listeners mesmo se API falhar
-    setTimeout(() => {
-      if (!selectedSubsidiary) {
-        attachFilterListeners();
-      }
-    }, 500);
   </script>
 </body>
 </html>

@@ -33,7 +33,7 @@ console.log(`║   Servidor rodando em: :${PORT}       ║`);
 console.log(`╚════════════════════════════════════════╝\n`);
 
 // ============================================================================
-// GET SUBSIDIARIES (UNIQUE)
+// GET SUBSIDIARIES
 // ============================================================================
 
 app.get('/api/subsidiaries', async (req, res) => {
@@ -48,87 +48,11 @@ app.get('/api/subsidiaries', async (req, res) => {
     const [rows] = await bigquery.query({ query, location: 'US' });
     const subs = rows.map(row => row.SUB).filter(Boolean);
     
-    console.log('[Subs] Loaded:', subs);
     res.json({ success: true, subsidiaries: subs });
   } catch (error) {
-    console.error('[Get Subs Error]', error.message);
     res.json({ success: true, subsidiaries: [] });
   }
 });
-
-// ============================================================================
-// GENERATE SQL
-// ============================================================================
-
-async function generateSQL(question, apiKey, context = {}) {
-  const subsidiary = context.subsidiary || 'SEDA';
-  const isLao = subsidiary === 'LAO';
-  
-  // Construir filtro WHERE dinamicamente - CORRETO
-  const subFilter = isLao ? '' : `d.SUB = '${subsidiary}' AND`;
-  
-  const isRevenue = /revenue|receita|faturamento|ganho/i.test(question);
-  const isDelivery = /deliver|entrega|enviado/i.test(question);
-  
-  let sql = '';
-  
-  if (isRevenue) {
-    // Revenue com UNION ALL: comparação + top produtos + top campanhas
-    sql = `
-SELECT 'REVENUE' as tipo, DATE_TRUNC(fc.Date, MONTH) as mes, ROUND(
-    (SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
-     SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
-     SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
-     SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
-     SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
-     (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
-    SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as valor
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
-GROUP BY mes ORDER BY mes DESC
-UNION ALL
-SELECT 'TOP_PRODUTOS' as tipo, NULL, CONCAT(dp.PRODUCT, ': R$ ', ROUND(SUM(fc.Revenue_SEDA), 2))
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-JOIN \`cheil-bi.apollo_gold.dProducts\` dp ON fc.Product = dp.SKU
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
-GROUP BY dp.PRODUCT ORDER BY SUM(fc.Revenue_SEDA) DESC LIMIT 3
-UNION ALL
-SELECT 'TOP_CAMPANHAS' as tipo, NULL, CONCAT(IFNULL(d.CAMPAIGN, 'N/A'), ': R$ ', ROUND(SUM(fc.Revenue_SEDA), 2))
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
-GROUP BY d.CAMPAIGN ORDER BY SUM(fc.Revenue_SEDA) DESC LIMIT 3`;
-  } else if (isDelivery) {
-    sql = `
-SELECT 'DELIVERIES' as tipo, DATE_TRUNC(fc.Date, MONTH) as mes, SUM(fc.DELIVERED) as valor
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 MONTH)
-GROUP BY mes ORDER BY mes DESC
-UNION ALL
-SELECT 'TOP_PRODUTOS' as tipo, NULL, CONCAT(dp.PRODUCT, ': ', CAST(SUM(fc.DELIVERED) AS STRING))
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-JOIN \`cheil-bi.apollo_gold.dProducts\` dp ON fc.Product = dp.SKU
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
-GROUP BY dp.PRODUCT ORDER BY SUM(fc.DELIVERED) DESC LIMIT 3`;
-  } else {
-    sql = `
-SELECT DATE_TRUNC(fc.Date, MONTH) as mes, ROUND(SUM(fc.Revenue_SEDA), 2) as revenue,
-  SUM(fc.DELIVERED) as delivered, SUM(fc.OPENS) as opens, SUM(fc.CLICKS) as clicks,
-  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
-  ROUND(SUM(fc.CLICKS) / NULLIF(SUM(fc.OPENS), 0), 4) as click_rate
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-WHERE ${subFilter} DATE_TRUNC(fc.Date, MONTH) >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
-GROUP BY mes ORDER BY mes DESC`;
-  }
-  
-  console.log(`[SQL] Generated for: ${question.substring(0, 60)}...`);
-  return sql;
-}
 
 // ============================================================================
 // EXECUTE QUERY
@@ -144,38 +68,160 @@ async function executeQuery(sql) {
 }
 
 // ============================================================================
-// FORMAT ANSWER
+// QUERY: BIG NUMBERS
 // ============================================================================
 
-async function formatAnswer(question, results, apiKey) {
+function getBigNumbersSQL(context) {
+  const subsidiary = context.subsidiary || 'SEDA';
+  const period = context.period || 'current_month';
+  const isLao = subsidiary === 'LAO';
+  
+  const whereClause = isLao 
+    ? `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`
+    : `WHERE d.SUB = '${subsidiary}' AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`;
+  
+  return `
+SELECT 
+  SUM(fc.DELIVERED) as delivered,
+  SUM(fc.OPENS) as opens,
+  SUM(fc.CLICKS) as clicks,
+  SUM(fc.Total_visits) as visits,
+  SUM(fc.Total_orders) as orders,
+  SUM(fc.Total_units) as units,
+  ROUND((SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
+         SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
+         SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
+         SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
+         SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
+         (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
+        SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as revenue,
+  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
+  ROUND(SUM(fc.CLICKS) / NULLIF(SUM(fc.OPENS), 0), 4) as click_rate,
+  ROUND(SUM(fc.Total_orders) / NULLIF(SUM(fc.Total_visits), 0), 4) as cvr
+FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
+LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
+${whereClause}`;
+}
+
+// ============================================================================
+// QUERY: TOP 5 CAMPAIGNS
+// ============================================================================
+
+function getTopCampaignsSQL(context) {
+  const subsidiary = context.subsidiary || 'SEDA';
+  const isLao = subsidiary === 'LAO';
+  
+  const whereClause = isLao 
+    ? `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`
+    : `WHERE d.SUB = '${subsidiary}' AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`;
+  
+  return `
+SELECT 
+  IFNULL(d.CAMPAIGN, 'N/A') as campaign,
+  SUM(fc.DELIVERED) as delivered,
+  ROUND((SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
+         SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
+         SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
+         SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
+         SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
+         (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
+        SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as revenue,
+  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
+  SUM(fc.Total_orders) as orders
+FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
+LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
+${whereClause}
+GROUP BY d.CAMPAIGN
+ORDER BY revenue DESC
+LIMIT 5`;
+}
+
+// ============================================================================
+// QUERY: TOP 5 PRODUCTS
+// ============================================================================
+
+function getTopProductsSQL(context) {
+  const subsidiary = context.subsidiary || 'SEDA';
+  const isLao = subsidiary === 'LAO';
+  
+  const whereClause = isLao 
+    ? `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`
+    : `WHERE d.SUB = '${subsidiary}' AND DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)`;
+  
+  return `
+SELECT 
+  dp.PRODUCT as product,
+  SUM(fc.DELIVERED) as delivered,
+  ROUND((SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
+         SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
+         SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
+         SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
+         SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
+         (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
+        SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as revenue,
+  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
+  SUM(fc.Total_orders) as orders
+FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
+JOIN \`cheil-bi.apollo_gold.dProducts\` dp ON fc.Product = dp.SKU
+LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
+${whereClause}
+GROUP BY dp.PRODUCT
+ORDER BY revenue DESC
+LIMIT 5`;
+}
+
+// ============================================================================
+// FORMAT SUMMARY
+// ============================================================================
+
+async function formatSummary(bigNumbers, campaigns, products, apiKey) {
   const client = new Anthropic({ apiKey });
 
-  const resultsText = JSON.stringify(results, null, 2);
+  const data = {
+    bigNumbers: bigNumbers[0] || {},
+    topCampaigns: campaigns || [],
+    topProducts: products || []
+  };
 
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-5-5',
-      max_tokens: 500,
+      max_tokens: 1000,
       messages: [{
         role: 'user',
-        content: `Pergunta: "${question}"\n\nDados:\n${resultsText}\n\nResuma em português: valor principal (primeiro linha), variação % se houver 2+ períodos. Seja bem conciso, máximo 3 linhas. Sem markdown, sem listas.`
+        content: `Formatte esse resumo executivo em português, bem legível:
+
+BIG NUMBERS:
+- Entregas: ${data.bigNumbers.delivered || 0}
+- Aberturas: ${data.bigNumbers.opens || 0} (Taxa: ${(data.bigNumbers.open_rate * 100).toFixed(2)}%)
+- Cliques: ${data.bigNumbers.clicks || 0}
+- Visitas: ${data.bigNumbers.visits || 0}
+- Pedidos: ${data.bigNumbers.orders || 0} (CVR: ${(data.bigNumbers.cvr * 100).toFixed(2)}%)
+- Unidades: ${data.bigNumbers.units || 0}
+- Revenue: R$ ${data.bigNumbers.revenue || 0}
+
+TOP 5 CAMPANHAS:
+${campaigns.map((c, i) => `${i+1}. ${c.campaign}: R$ ${c.revenue} (${c.delivered} entregas, ${(c.open_rate * 100).toFixed(2)}% OR)`).join('\n')}
+
+TOP 5 PRODUTOS:
+${products.map((p, i) => `${i+1}. ${p.product}: R$ ${p.revenue} (${p.delivered} entregas, ${(p.open_rate * 100).toFixed(2)}% OR)`).join('\n')}
+
+Faça um resumo executivo bem estruturado, sem markdown, bem profissional.`
       }]
     });
 
-    let answer = '';
+    let summary = '';
     for (const block of response.content) {
       if (block.type === 'text') {
-        answer = block.text.trim();
+        summary = block.text.trim();
         break;
       }
     }
 
-    answer = answer.replace(/\*\*/g, '').replace(/\*(?!\w)/g, '').replace(/#{1,6}\s/g, '').replace(/`/g, '');
-    
-    return answer;
+    return summary;
   } catch (error) {
     console.error('[Format Error]', error.message);
-    throw error;
+    return JSON.stringify(data, null, 2);
   }
 }
 
@@ -183,21 +229,27 @@ async function formatAnswer(question, results, apiKey) {
 // ROUTES
 // ============================================================================
 
-app.post('/api/ask', async (req, res) => {
+app.post('/api/summary', async (req, res) => {
   try {
-    const { question, apiKey, context } = req.body;
+    const { apiKey, context } = req.body;
 
     if (!apiKey) return res.status(401).json({ error: 'API Key required' });
-    if (!question) return res.status(400).json({ error: 'Question required' });
 
-    const sub = context?.subsidiary || 'SEDA';
-    console.log(`[Ask] ${question} | SUB: ${sub}`);
+    console.log(`[Summary] ${context?.subsidiary || 'SEDA'} | ${context?.period || 'current_month'}`);
 
-    let sql = await generateSQL(question, apiKey, context);
-    let results = await executeQuery(sql);
-    let answer = await formatAnswer(question, results, apiKey);
+    // Executar 3 queries
+    const bigNumbers = await executeQuery(getBigNumbersSQL(context));
+    const campaigns = await executeQuery(getTopCampaignsSQL(context));
+    const products = await executeQuery(getTopProductsSQL(context));
 
-    res.json({ success: true, answer });
+    // Formatar resumo
+    const summary = await formatSummary(bigNumbers, campaigns, products, apiKey);
+
+    res.json({ 
+      success: true, 
+      summary,
+      data: { bigNumbers: bigNumbers[0], campaigns, products }
+    });
   } catch (error) {
     console.error('[Error]', error.message);
     res.status(500).json({ error: error.message });
