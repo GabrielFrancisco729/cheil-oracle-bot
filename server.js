@@ -116,28 +116,49 @@ Projeto: ${BQ_CONFIG.projectId} | Dataset: ${BQ_CONFIG.dataset}
    - SUB: SUBSIDIÁRIA (SEDA, MX, CE, DA, HA, WM, VD, AC) ← USE PARA FILTRAR!
    - CAMPAIGN, CHANNEL, SEGMENT GROUP, AUDIENCE, BU CAMPAIGN, TRIGGER
    
-MÉTRICAS DO DASHBOARD:
+MÉTRICAS DO DASHBOARD (REVENUE - CRÍTICO):
+- Revenue_SEDA = Receita em BRL (Real) - USE SEMPRE para SEDA
+- Revenue = Receita em moeda original (USD) - USE para outras subsidiárias ou sem especificação
 - Entregas (DELIVERED), Aberturas (OPENS), Cliques (CLICKS)
-- Visitas (Total_visits), Pedidos (Total_orders), Receita (Revenue/Revenue_SEDA)
-- Unidades (Total_units)
+- Visitas (Total_visits), Pedidos (Total_orders), Unidades (Total_units)
 - Taxas: OR% = OPENS/DELIVERED, CTOR% = CLICKS/OPENS, CTR% = CLICKS/DELIVERED
 - CVR% = Total_orders/Total_visits, AOV = Revenue/Total_orders
 
+REGRA REVENUE (IMPORTANTE):
+- Se query filtra por SUB = 'SEDA' → USE SUM(Revenue_SEDA) EM BRL
+- Se query NÃO menciona SEDA → USE SUM(Revenue) normal
+- NUNCA misture Revenue_SEDA e Revenue na mesma query
+
+COMPARAÇÕES AUTOMÁTICAS (OBRIGATÓRIO):
+Quando pergunta é aberta ("Quanto de revenue?"), faça comparações:
+- GROUP BY mês (atual vs mês anterior) → UNION ou CASE WHEN
+- GROUP BY produto → top 5 produtos
+- GROUP BY canal → breakdown por canal
+- GROUP BY subsidiary (se aplicável)
+- Sempre inclua WoW, MoM, YoY se disponível
+EXEMPLO para meses:
+  SELECT 
+    DATE_TRUNC(fConsolidated.Date, MONTH) as mes,
+    SUM(Revenue_SEDA) as revenue
+  FROM fConsolidated
+  JOIN dAllDimensions ON fConsolidated.Tracking_code = dAllDimensions.TrackingCode
+  WHERE dAllDimensions.SUB = 'SEDA'
+  GROUP BY mes
+  ORDER BY mes DESC
+
 FILTROS COMUNS:
 - MÊS ATUAL: WHERE DATE_TRUNC(fConsolidated.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+- MÊS ANTERIOR: WHERE DATE_TRUNC(fConsolidated.Date, MONTH) = DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH)
 - SUBSIDIÁRIA SEDA: JOIN dAllDimensions WHERE dAllDimensions.SUB = 'SEDA'
 - CANAL EMAIL: WHERE fConsolidated.CHANNEL = 'EMAIL'
 - FONTE ANALYTICS: WHERE fConsolidated.Source = 'ANALYTICS'
-- PRODUTO ESPECÍFICO: WHERE dProducts.PRODUCT LIKE '%nome%'
+- PRODUTO: WHERE dProducts.PRODUCT LIKE '%nome%'
 
-PADRÃO DE QUERY:
-- SELECT SUM(métrica) AS resultado
-- FROM fConsolidated
-- LEFT JOIN dProducts ON fConsolidated.Product = dProducts.SKU
-- LEFT JOIN dAllDimensions ON fConsolidated.Tracking_code = dAllDimensions.TrackingCode
-- WHERE {filtros}
-- GROUP BY {dimensões se necessário}
-- ORDER BY resultado DESC LIMIT 1000
+PADRÃO DE QUERY INTELIGENTE:
+1. Se pergunta é simples ("Qual o revenue?") → faça GROUP BY DATE para comparar meses
+2. Se pergunta é sobre produto → GROUP BY dProducts.PRODUCT
+3. Se pergunta é sobre canal → GROUP BY fConsolidated.CHANNEL
+4. SEMPRE agregue múltiplas dimensões para dar contexto
 
 CONTEXTO CONVERSACIONAL: Mantenha filtros anteriores (se falou de SEDA, continua SEDA)
 ERRO? Responda: ERROR`;
@@ -246,10 +267,33 @@ async function formatAnswer(question, sqlResults, userApiKey) {
           role: 'user',
           content: `Pergunta: "${question}"
 
-Resultado dos dados (em JSON):
+Resultado dos dados (JSON):
 ${resultsJson}
 
-Por favor, resuma esses dados de forma clara em português. Destaque os pontos principais.`
+INSTRUÇÕES PARA FORMATAÇÃO DA RESPOSTA:
+1. Se há múltiplas linhas (períodos, produtos, canais):
+   - Crie uma listagem CLARA mostrando cada item
+   - Se há 2 períodos (atual vs anterior): mostre comparação e variação %
+   - Se há múltiplos produtos: destaque TOP 3
+   - Se há múltiplos canais: mostre breakdown por canal
+
+2. Se há apenas 1 valor:
+   - NÃO retorne só o número!
+   - Se tem data, compare com período anterior
+   - Se não há contexto, explique limitações dos dados
+
+3. SEMPRE inclua:
+   - Valor principal/total
+   - Comparação com período anterior (variação %)
+   - Distribuição por categoria principal (se aplicável)
+
+4. Formato:
+   - Claro e legível (sem markdown complexo)
+   - Números em formato brasileiro (R$ 1.234,56)
+   - Porcentagens com 2 casas decimais
+   - Nenhum asterisco ou caractere de markdown
+
+Ser conciso mas informativo. Forneça contexto, não apenas números.`
         }
       ]
     });
