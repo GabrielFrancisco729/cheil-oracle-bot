@@ -5,426 +5,321 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Oráculo de Dados - Cheil BI</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --primary-dark: #1a1a1a;
+      --primary-light: #ffffff;
+      --accent-purple: #6b5fb3;
+      --accent-blue: #5b7cfa;
+      --accent-pink: #ff6b9d;
+      --success: #51cf66;
+      --warning: #ffd43b;
+      --bg-gray: #f8f9fa;
+      --border-light: #e9ecef;
+      --text-dark: #212529;
+      --text-light: #6c757d;
     }
-
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, var(--accent-purple) 0%, #8b7cc8 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
     }
-
+    
     .container {
-      background: white;
+      background: var(--primary-light);
       border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      width: 100%;
       max-width: 600px;
+      width: 100%;
       overflow: hidden;
     }
-
-    /* ===== LOGIN SCREEN ===== */
-    .login-screen {
-      padding: 60px 40px;
+    
+    .header {
+      background: var(--primary-dark);
+      color: var(--primary-light);
+      padding: 30px;
       text-align: center;
+      border-bottom: 4px solid var(--accent-purple);
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    
+    .header p {
+      font-size: 14px;
+      color: #aaa;
+    }
+    
+    .content {
+      padding: 30px;
+    }
+    
+    /* FILTROS INICIAIS */
+    #filterScreen {
+      display: block;
+    }
+    
+    #chatScreen {
       display: none;
     }
-
-    .login-screen.show {
-      display: block;
-    }
-
-    .login-screen h1 {
-      font-size: 32px;
-      color: #333;
-      margin-bottom: 10px;
-    }
-
-    .login-screen p {
-      font-size: 16px;
-      color: #666;
+    
+    .filter-section {
       margin-bottom: 30px;
     }
-
-    .login-screen .info-box {
-      background: #f5f5f5;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
-      text-align: left;
-    }
-
-    .login-screen .info-box h3 {
-      color: #667eea;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    .login-screen .info-box p {
-      font-size: 13px;
-      color: #555;
-      margin-bottom: 8px;
-      line-height: 1.5;
-    }
-
-    .login-screen .info-box a {
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .login-screen .info-box a:hover {
-      text-decoration: underline;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-      text-align: left;
-    }
-
-    .form-group label {
+    
+    .filter-section label {
       display: block;
-      margin-bottom: 8px;
-      color: #333;
-      font-weight: 500;
-      font-size: 14px;
-    }
-
-    .form-group input {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: monospace;
-      transition: all 0.2s;
-    }
-
-    .form-group input:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-group input::placeholder {
-      color: #999;
-    }
-
-    .login-btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      padding: 12px 40px;
-      font-size: 16px;
       font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-dark);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .filter-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    
+    .filter-btn {
+      padding: 12px 16px;
+      border: 2px solid var(--border-light);
+      background: var(--bg-gray);
       border-radius: 8px;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      color: var(--text-dark);
+    }
+    
+    .filter-btn:hover {
+      border-color: var(--accent-purple);
+      background: #f0e6ff;
+    }
+    
+    .filter-btn.active {
+      background: var(--accent-purple);
+      color: white;
+      border-color: var(--accent-purple);
+    }
+    
+    .start-btn {
       width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
     }
-
-    .login-btn:hover {
+    
+    .start-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 10px 25px rgba(107, 95, 179, 0.4);
     }
-
-    .login-btn:active {
-      transform: translateY(0);
-    }
-
-    .login-btn:disabled {
-      background: #ccc;
+    
+    .start-btn:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
       transform: none;
     }
-
-    /* ===== CHAT SCREEN ===== */
-    .chat-screen {
-      display: none;
-      flex-direction: column;
-      height: 80vh;
-      max-height: 600px;
-    }
-
-    .chat-screen.show {
-      display: flex;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 20px;
-      text-align: center;
-      position: relative;
-    }
-
-    .header h1 {
-      font-size: 24px;
-      margin-bottom: 5px;
-    }
-
-    .header p {
-      font-size: 14px;
-      opacity: 0.9;
-    }
-
-    .logout-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(255,255,255,0.2);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.4);
-      padding: 8px 16px;
-      font-size: 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .logout-btn:hover {
-      background: rgba(255,255,255,0.3);
-      border-color: rgba(255,255,255,0.6);
-    }
-
+    
+    /* CHAT */
     .chat-box {
-      flex: 1;
+      height: 400px;
       overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      background: #fafafa;
+      background: var(--bg-gray);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-light);
     }
-
+    
     .message {
-      display: flex;
-      gap: 10px;
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    .message.user {
-      justify-content: flex-end;
-    }
-
-    .message.bot {
-      justify-content: flex-start;
-    }
-
-    .message-bubble {
-      max-width: 70%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      word-wrap: break-word;
-      line-height: 1.5;
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 8px;
       font-size: 14px;
+      line-height: 1.5;
     }
-
-    .message.user .message-bubble {
-      background: #667eea;
+    
+    .message.user {
+      background: var(--accent-blue);
       color: white;
-      border-bottom-right-radius: 4px;
+      margin-left: 20px;
+      text-align: right;
     }
-
-    .message.bot .message-bubble {
-      background: white;
-      color: #333;
-      border: 1px solid #e0e0e0;
-      border-bottom-left-radius: 4px;
+    
+    .message.bot {
+      background: var(--primary-light);
+      color: var(--text-dark);
+      margin-right: 20px;
+      border: 1px solid var(--border-light);
     }
-
-    .message.bot .message-bubble.error {
-      background: #ffebee;
-      color: #c62828;
-      border-color: #ef5350;
+    
+    .message.bot.error {
+      background: #ffe0e0;
+      color: #c92a2a;
+      border-color: #ff8787;
     }
-
+    
+    .message.system {
+      background: var(--warning);
+      color: var(--text-dark);
+      font-weight: 500;
+      text-align: center;
+      margin: 0 0;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--accent-blue);
+      border-radius: 50%;
+      animation: loading 1.4s infinite;
+    }
+    
+    .loading:nth-child(2) { animation-delay: 0.2s; }
+    .loading:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes loading {
+      0%, 80%, 100% { opacity: 0.3; }
+      40% { opacity: 1; }
+    }
+    
     .input-area {
-      padding: 20px;
-      border-top: 1px solid #e0e0e0;
       display: flex;
       gap: 10px;
-      background: white;
     }
-
-    input {
+    
+    #questionInput {
       flex: 1;
       padding: 12px;
-      border: 1px solid #ddd;
+      border: 2px solid var(--border-light);
       border-radius: 8px;
       font-size: 14px;
       font-family: inherit;
-      transition: all 0.2s;
+      transition: border-color 0.2s;
     }
-
-    input:focus {
+    
+    #questionInput:focus {
       outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: var(--accent-purple);
     }
-
-    button {
+    
+    .send-btn {
       padding: 12px 24px;
-      background: #667eea;
+      background: var(--accent-purple);
       color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       transition: all 0.2s;
     }
-
-    button:hover {
-      background: #764ba2;
+    
+    .send-btn:hover {
+      background: #5a4f99;
     }
-
-    button:disabled {
-      background: #ccc;
+    
+    .send-btn:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
     }
-
-    .loading {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-      justify-content: center;
+    
+    .context-badge {
+      display: inline-block;
+      background: var(--accent-blue);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-bottom: 16px;
+      font-weight: 500;
     }
-
-    .loading span {
-      width: 8px;
-      height: 8px;
-      background: #667eea;
-      border-radius: 50%;
-      animation: bounce 1.4s infinite;
+    
+    .disconnect-btn {
+      padding: 8px 16px;
+      background: var(--text-light);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      position: absolute;
+      top: 20px;
+      right: 20px;
     }
-
-    .loading span:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .loading span:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes bounce {
-      0%, 80%, 100% {
-        transform: scale(0);
-      }
-      40% {
-        transform: scale(1);
-      }
-    }
-
-    .error-banner {
-      background: #ffebee;
-      color: #c62828;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      display: none;
-    }
-
-    .error-banner.show {
-      display: block;
-    }
-
-    /* Scrollbar styling */
-    .chat-box::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .chat-box::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .chat-box::-webkit-scrollbar-thumb {
-      background: #ddd;
-      border-radius: 4px;
-    }
-
-    .chat-box::-webkit-scrollbar-thumb:hover {
-      background: #bbb;
+    
+    .disconnect-btn:hover {
+      background: var(--text-dark);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- LOGIN SCREEN -->
-    <div class="login-screen show" id="loginScreen">
+    <div class="header">
       <h1>🔮 Oráculo de Dados</h1>
-      <p>Cheil BI - Faça perguntas sobre seus dados</p>
-      
-      <div class="info-box">
-        <h3>📌 Como funciona?</h3>
-        <p>✓ Cole sua API Key do Claude (seu próprio token)</p>
-        <p>✓ Cada pergunta usa seu crédito do Claude</p>
-        <p>✓ Você controla seu uso e gastos</p>
-        <p>✓ Sua key fica segura no navegador</p>
-      </div>
-
-      <div class="info-box">
-        <h3>🔑 Ainda não tem API Key?</h3>
-        <p>1. Acesse: <a href="https://console.anthropic.com/account/keys" target="_blank">Claude API Keys</a></p>
-        <p>2. Crie uma nova secret key</p>
-        <p>3. Copie e cole no campo abaixo</p>
-      </div>
-
-      <div class="form-group">
-        <label for="apiKeyInput">API Key do Claude:</label>
-        <input 
-          type="password" 
-          id="apiKeyInput" 
-          placeholder="sk-ant-xxxxxxxxxxxxxxxx"
-          autocomplete="off"
-        >
-      </div>
-
-      <button class="login-btn" onclick="validateAndLogin()">
-        🚀 Conectar e Começar
-      </button>
+      <p>Cheil BI - Análise de Performance</p>
+      <button id="disconnectBtn" class="disconnect-btn" style="display:none;">Desconectar</button>
     </div>
-
-    <!-- CHAT SCREEN -->
-    <div class="chat-screen" id="chatScreen">
-      <div class="header">
-        <button class="logout-btn" onclick="logout()">Desconectar</button>
-        <h1>🔮 Oráculo de Dados</h1>
-        <p>Cheil BI</p>
+    
+    <div class="content">
+      <!-- TELA DE FILTROS -->
+      <div id="filterScreen">
+        <div class="filter-section">
+          <label>Qual é a subsidiária?</label>
+          <div class="filter-options">
+            <button class="filter-btn" data-sub="SEDA">🇧🇷 SEDA</button>
+            <button class="filter-btn" data-sub="MX">🇲🇽 MX</button>
+            <button class="filter-btn" data-sub="CE">🏢 CE</button>
+            <button class="filter-btn" data-sub="DA">🏢 DA</button>
+            <button class="filter-btn" data-sub="HA">🏢 HA</button>
+            <button class="filter-btn" data-sub="WM">🏢 WM</button>
+          </div>
+        </div>
+        
+        <div class="filter-section">
+          <label>Qual período?</label>
+          <div class="filter-options">
+            <button class="filter-btn" data-period="current_week">📅 Semana Atual</button>
+            <button class="filter-btn" data-period="last_week">📅 Semana Passada</button>
+            <button class="filter-btn" data-period="current_month">📊 Mês Corrente</button>
+            <button class="filter-btn" data-period="last_month">📊 Mês Passado</button>
+            <button class="filter-btn" data-period="custom">⚙️ Outro</button>
+            <button class="filter-btn" data-period="all_time">📈 Todo Período</button>
+          </div>
+        </div>
+        
+        <button id="startBtn" class="start-btn" disabled>Começar Análise</button>
       </div>
-
-      <div class="error-banner" id="errorBanner">
-        <span id="errorText"></span>
-      </div>
-
-      <div class="chat-box" id="chatBox"></div>
-
-      <div class="input-area">
-        <input 
-          type="text" 
-          id="questionInput" 
-          placeholder="Faça uma pergunta sobre os dados..."
-          autocomplete="off"
-        >
-        <button onclick="sendQuestion()" id="sendBtn">Enviar</button>
+      
+      <!-- TELA DE CHAT -->
+      <div id="chatScreen">
+        <div id="contextBadge" class="context-badge"></div>
+        <div id="chatBox" class="chat-box"></div>
+        <div class="input-area">
+          <input type="text" id="questionInput" placeholder="Faça uma pergunta sobre seus dados...">
+          <button id="sendBtn" class="send-btn">Enviar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -432,171 +327,141 @@
   <script>
     const API_URL = window.location.origin;
     const API_KEY_STORAGE = 'oracle_api_key';
+    
+    let selectedSubsidiary = null;
+    let selectedPeriod = null;
+    let apiKey = null;
+    let messages = [];
+    
+    // Elementos
+    const filterScreen = document.getElementById('filterScreen');
+    const chatScreen = document.getElementById('chatScreen');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const startBtn = document.getElementById('startBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
     const chatBox = document.getElementById('chatBox');
     const questionInput = document.getElementById('questionInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const loginScreen = document.getElementById('loginScreen');
-    const chatScreen = document.getElementById('chatScreen');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const errorBanner = document.getElementById('errorBanner');
-    const errorText = document.getElementById('errorText');
-
-    // ===== STARTUP =====
-    window.addEventListener('load', () => {
-      const savedKey = localStorage.getItem(API_KEY_STORAGE);
-      if (savedKey) {
-        loadChatScreen();
-      } else {
-        showLoginScreen();
-      }
-    });
-
-    // ===== LOGIN =====
-    async function validateAndLogin() {
-      const apiKey = apiKeyInput.value.trim();
-
-      if (!apiKey) {
-        showError('Por favor, cole sua API Key');
-        return;
-      }
-
-      // Mostrar loading
-      const btn = document.querySelector('.login-btn');
-      const originalText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = '⏳ Validando...';
-
-      try {
-        const response = await fetch(`${API_URL}/api/validate-key`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          // Salvar key localmente
-          localStorage.setItem(API_KEY_STORAGE, apiKey);
-          loadChatScreen();
-        } else {
-          showError(data.error || 'API Key inválida');
+    const contextBadge = document.getElementById('contextBadge');
+    
+    // EVENT LISTENERS
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sub = btn.dataset.sub;
+        const period = btn.dataset.period;
+        
+        if (sub) {
+          document.querySelectorAll('[data-sub]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedSubsidiary = sub;
         }
-      } catch (error) {
-        showError(`Erro de conexão: ${error.message}`);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = originalText;
+        
+        if (period) {
+          document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedPeriod = period;
+        }
+        
+        updateStartBtn();
+      });
+    });
+    
+    function updateStartBtn() {
+      startBtn.disabled = !selectedSubsidiary || !selectedPeriod;
+    }
+    
+    startBtn.addEventListener('click', () => {
+      apiKey = localStorage.getItem(API_KEY_STORAGE);
+      if (!apiKey) {
+        apiKey = prompt('Insira sua API Key do Claude (sk-ant-...):');
+        if (!apiKey) return;
+        localStorage.setItem(API_KEY_STORAGE, apiKey);
       }
-    }
-
-    function showLoginScreen() {
-      loginScreen.classList.add('show');
-      chatScreen.classList.remove('show');
-      apiKeyInput.focus();
-    }
-
-    // ===== CHAT =====
-    function loadChatScreen() {
-      chatScreen.classList.add('show');
-      loginScreen.classList.remove('show');
-      questionInput.focus();
-      addMessage('bot', 'Olá! 👋 Sou o Oráculo de Dados da Cheil BI. Faça-me uma pergunta sobre seus dados!');
-    }
-
-    async function sendQuestion() {
+      
+      filterScreen.style.display = 'none';
+      chatScreen.style.display = 'block';
+      disconnectBtn.style.display = 'block';
+      updateContextBadge();
+      addSystemMessage(`Analisando dados de ${selectedSubsidiary} - ${getPeriodLabel()}`);
+    });
+    
+    sendBtn.addEventListener('click', async () => {
       const question = questionInput.value.trim();
       if (!question) return;
-
-      const apiKey = localStorage.getItem(API_KEY_STORAGE);
-
+      
       addMessage('user', question);
       questionInput.value = '';
       sendBtn.disabled = true;
-
-      addMessage('bot', '<div class="loading"><span></span><span></span><span></span></div>');
-
+      
       try {
-        // Preparar histórico para contexto (últimas 6 mensagens)
-        const allMessages = Array.from(chatBox.querySelectorAll('.message'));
-        const history = allMessages
-          .slice(-6)
-          .map(el => ({
-            role: el.classList.contains('user') ? 'user' : 'bot',
-            content: el.textContent
-          }))
-          .filter(m => !m.content.includes('loading')); // Remover mensagens de loading
-
         const response = await fetch(`${API_URL}/api/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, apiKey, history })
+          body: JSON.stringify({
+            question,
+            apiKey,
+            history: messages.filter(m => m.role !== 'system'),
+            context: { subsidiary: selectedSubsidiary, period: selectedPeriod }
+          })
         });
-
+        
         const data = await response.json();
-
-        // Remover loading
-        const lastMessage = chatBox.lastChild;
-        if (lastMessage) chatBox.removeChild(lastMessage);
-
+        
         if (data.success) {
           addMessage('bot', data.answer);
         } else {
-          addMessage('bot', `❌ Erro: ${data.error}`, true);
+          addMessage('bot error', `❌ ${data.error}`);
         }
       } catch (error) {
-        const lastMessage = chatBox.lastChild;
-        if (lastMessage) chatBox.removeChild(lastMessage);
-        addMessage('bot', `❌ Erro de conexão: ${error.message}`, true);
+        addMessage('bot error', `❌ Erro: ${error.message}`);
       } finally {
         sendBtn.disabled = false;
         questionInput.focus();
       }
-    }
-
-    function addMessage(sender, text, isError = false) {
-      const messageEl = document.createElement('div');
-      messageEl.className = `message ${sender}`;
-
-      const bubble = document.createElement('div');
-      bubble.className = `message-bubble ${isError ? 'error' : ''}`;
-      bubble.innerHTML = text;
-
-      messageEl.appendChild(bubble);
-      chatBox.appendChild(messageEl);
+    });
+    
+    questionInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+    
+    disconnectBtn.addEventListener('click', () => {
+      localStorage.removeItem(API_KEY_STORAGE);
+      location.reload();
+    });
+    
+    function addMessage(role, content) {
+      messages.push({ role, content });
+      const msgEl = document.createElement('div');
+      msgEl.className = `message ${role}`;
+      msgEl.textContent = content;
+      chatBox.appendChild(msgEl);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    // ===== ERROR HANDLING =====
-    function showError(message) {
-      errorText.textContent = message;
-      errorBanner.classList.add('show');
-      setTimeout(() => {
-        errorBanner.classList.remove('show');
-      }, 5000);
+    
+    function addSystemMessage(text) {
+      messages.push({ role: 'system', content: text });
+      const msgEl = document.createElement('div');
+      msgEl.className = 'message system';
+      msgEl.textContent = text;
+      chatBox.appendChild(msgEl);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
-
-    // ===== LOGOUT =====
-    function logout() {
-      localStorage.removeItem(API_KEY_STORAGE);
-      chatBox.innerHTML = '';
-      showLoginScreen();
-      apiKeyInput.value = '';
+    
+    function updateContextBadge() {
+      contextBadge.textContent = `${selectedSubsidiary} • ${getPeriodLabel()}`;
     }
-
-    // ===== KEYBOARD =====
-    questionInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendQuestion();
-      }
-    });
-
-    apiKeyInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        validateAndLogin();
-      }
-    });
+    
+    function getPeriodLabel() {
+      const labels = {
+        current_week: 'Semana Atual',
+        last_week: 'Semana Passada',
+        current_month: 'Mês Corrente',
+        last_month: 'Mês Passado',
+        custom: 'Período Customizado',
+        all_time: 'Todo Período'
+      };
+      return labels[selectedPeriod] || selectedPeriod;
+    }
   </script>
 </body>
 </html>
