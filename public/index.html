@@ -33,14 +33,14 @@
 
     .container {
       width: 100%;
-      max-width: 700px;
+      max-width: 800px;
       background: var(--bg-white);
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       display: flex;
       flex-direction: column;
       height: 90vh;
-      max-height: 750px;
+      max-height: 800px;
     }
 
     .header {
@@ -49,7 +49,7 @@
       padding: 16px 20px;
       border-radius: 16px 16px 0 0;
       text-align: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
     }
 
     .header h1 {
@@ -96,17 +96,18 @@
 
     .tab-btn {
       flex: 1;
-      min-width: 100px;
-      padding: 12px 16px;
+      min-width: 110px;
+      padding: 12px 14px;
       border: none;
       background: var(--bg-white);
       color: var(--text-light);
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
       border-bottom: 2px solid transparent;
       transition: all 0.2s;
       white-space: nowrap;
+      text-align: center;
     }
 
     .tab-btn:hover {
@@ -118,20 +119,19 @@
       border-bottom-color: var(--accent-purple);
     }
 
-    /* CONTENT AREAS */
-    .content-area {
+    /* CHAT LAYOUT */
+    .chat-container {
       flex: 1;
       display: none;
       flex-direction: column;
       overflow: hidden;
     }
 
-    .content-area.active {
+    .chat-container.active {
       display: flex;
     }
 
-    /* CHAT AREA */
-    .chat-area {
+    .chat-messages {
       flex: 1;
       overflow-y: auto;
       padding: 16px 20px;
@@ -166,11 +166,12 @@
     }
 
     .message-content {
-      max-width: 70%;
+      max-width: 75%;
       padding: 12px 16px;
       border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.4;
+      font-size: 13px;
+      line-height: 1.5;
+      word-wrap: break-word;
     }
 
     .message.bot .message-content {
@@ -184,95 +185,19 @@
       color: white;
     }
 
-    /* RESUMO AREA */
-    .resumo-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .resumo-empty {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--text-light);
-      text-align: center;
-    }
-
-    .resumo-empty p {
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-
-    .gerar-btn {
-      padding: 10px 20px;
-      background: var(--accent-purple);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-
-    .gerar-btn:hover {
-      background: #5558e3;
-    }
-
-    .resumo-content {
-      white-space: pre-wrap;
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--text-dark);
-      font-family: 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg-gray);
-      padding: 16px;
-      border-radius: 8px;
-    }
-
-    .context-info {
-      background: rgba(99, 102, 241, 0.1);
-      border-left: 3px solid var(--accent-purple);
-      padding: 12px 16px;
-      border-radius: 6px;
-      font-size: 12px;
-      color: var(--text-dark);
-    }
-
-    .placeholder-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--text-light);
-      text-align: center;
-    }
-
-    .placeholder-content p {
-      font-size: 14px;
-    }
-
     /* INPUT AREA */
     .input-area {
       padding: 12px 16px;
       border-top: 1px solid var(--border-light);
       display: flex;
+      flex-direction: column;
       gap: 8px;
-      align-items: flex-end;
     }
 
     .input-options {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 12px;
     }
 
     .option-btn {
@@ -281,7 +206,7 @@
       background: var(--bg-white);
       border-radius: 8px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
       color: var(--text-dark);
       transition: all 0.2s;
@@ -302,7 +227,7 @@
       padding: 10px 12px;
       border: 1px solid var(--border-light);
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-dark);
       background: var(--bg-white);
       cursor: pointer;
@@ -313,10 +238,16 @@
       border-color: var(--accent-purple);
     }
 
+    .period-select:focus {
+      outline: none;
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
     .text-input-row {
       display: flex;
       gap: 8px;
-      flex: 1;
+      align-items: flex-end;
     }
 
     .text-input {
@@ -338,7 +269,7 @@
     }
 
     .mic-btn {
-      padding: 10px 12px;
+      padding: 8px 10px;
       background: var(--bg-gray);
       border: 1px solid var(--border-light);
       border-radius: 8px;
@@ -348,8 +279,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 40px;
-      width: 40px;
+      height: 38px;
+      width: 38px;
     }
 
     .mic-btn:hover {
@@ -380,10 +311,11 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       transition: all 0.2s;
-      height: 40px;
+      height: 38px;
+      white-space: nowrap;
     }
 
     .send-btn:hover:not(:disabled) {
@@ -413,7 +345,7 @@
 
     .api-key-screen p {
       color: var(--text-light);
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.5;
     }
 
@@ -440,7 +372,7 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       transition: all 0.2s;
     }
@@ -481,6 +413,29 @@
         transform: translateY(-8px);
       }
     }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 8px 12px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-white);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-purple);
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-gray);
+      border-color: var(--accent-purple);
+    }
   </style>
 </head>
 <body>
@@ -513,46 +468,30 @@
         <button class="tab-btn" data-tab="best-worst">⭐ Best x Worst</button>
       </div>
 
-      <!-- CHAT CONTENT -->
-      <div id="chat" class="content-area active">
-        <div id="chatArea" class="chat-area"></div>
-        <div id="chatInputArea" class="input-area"></div>
+      <!-- CHAT TABS -->
+      <div id="chat" class="chat-container active">
+        <div class="chat-messages"></div>
+        <div class="input-area"></div>
       </div>
 
-      <!-- RESUMO EXECUTIVO -->
-      <div id="resumo-exec" class="content-area">
-        <div class="resumo-area">
-          <div class="context-info" id="contextInfoExec" style="display: none;"></div>
-          <div id="resumoExecContent"></div>
-        </div>
+      <div id="resumo-exec" class="chat-container">
+        <div class="chat-messages"></div>
+        <div class="input-area"></div>
       </div>
 
-      <!-- RESUMO GERENCIAL -->
-      <div id="resumo-ger" class="content-area">
-        <div class="resumo-area">
-          <div class="context-info" id="contextInfoGer" style="display: none;"></div>
-          <div id="resumoGerContent"></div>
-        </div>
+      <div id="resumo-ger" class="chat-container">
+        <div class="chat-messages"></div>
+        <div class="input-area"></div>
       </div>
 
-      <!-- SLIDES -->
-      <div id="slides" class="content-area">
-        <div class="resumo-area">
-          <div class="placeholder-content">
-            <p>Slides e Relatórios</p>
-            <p style="font-size: 12px; color: #aaa; margin-top: 8px;">Em desenvolvimento</p>
-          </div>
-        </div>
+      <div id="slides" class="chat-container">
+        <div class="chat-messages"></div>
+        <div class="input-area"></div>
       </div>
 
-      <!-- BEST x WORST -->
-      <div id="best-worst" class="content-area">
-        <div class="resumo-area">
-          <div class="placeholder-content">
-            <p>Best x Worst Analysis</p>
-            <p style="font-size: 12px; color: #aaa; margin-top: 8px;">Em desenvolvimento</p>
-          </div>
-        </div>
+      <div id="best-worst" class="chat-container">
+        <div class="chat-messages"></div>
+        <div class="input-area"></div>
       </div>
     </div>
   </div>
@@ -562,21 +501,26 @@
     const API_KEY_STORAGE = 'cheil_oracle_api_key';
     
     let apiKey = null;
-    let conversationState = 'awaiting_subsidiary';
     let selectedSubsidiaries = [];
     let selectedPeriod = null;
     let subsidiariesList = [];
     let mediaRecorder = null;
     let recordingChunks = [];
 
+    // State para cada aba
+    const tabStates = {
+      chat: { initialized: false, conversationState: 'awaiting_subsidiary' },
+      'resumo-exec': { initialized: false, conversationState: 'ready', generated: false },
+      'resumo-ger': { initialized: false, conversationState: 'ready', generated: false },
+      'slides': { initialized: false, conversationState: 'ready' },
+      'best-worst': { initialized: false, conversationState: 'ready' }
+    };
+
     const apiKeyScreen = document.getElementById('apiKeyScreen');
     const mainScreen = document.getElementById('mainScreen');
     const apiKeyInput = document.getElementById('apiKeyInput');
     const submitApiKeyBtn = document.getElementById('submitApiKeyBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
-    
-    const chatArea = document.getElementById('chatArea');
-    const chatInputArea = document.getElementById('chatInputArea');
 
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -584,20 +528,21 @@
         const tabName = btn.dataset.tab;
         
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.content-area').forEach(a => a.classList.remove('active'));
+        document.querySelectorAll('.chat-container').forEach(a => a.classList.remove('active'));
         
         btn.classList.add('active');
         document.getElementById(tabName).classList.add('active');
 
-        // Auto-gerar resumo se for a aba de resumo
-        if (tabName === 'resumo-exec' || tabName === 'resumo-ger') {
-          if (selectedSubsidiaries.length && selectedPeriod) {
-            const contentId = tabName === 'resumo-exec' ? 'resumoExecContent' : 'resumoGerContent';
-            const contextId = tabName === 'resumo-exec' ? 'contextInfoExec' : 'contextInfoGer';
-            if (!document.getElementById(contentId).textContent) {
-              generateResumo(tabName, contentId, contextId);
-            }
-          }
+        // Inicializar aba se necessário
+        if (!tabStates[tabName].initialized) {
+          initializeTab(tabName);
+        }
+
+        // Auto-gerar resumo se for abas de resumo
+        if ((tabName === 'resumo-exec' || tabName === 'resumo-ger') && 
+            selectedSubsidiaries.length && selectedPeriod &&
+            !tabStates[tabName].generated) {
+          generateResumo(tabName);
         }
       });
     });
@@ -628,11 +573,8 @@
     async function showMainScreen() {
       apiKeyScreen.style.display = 'none';
       mainScreen.style.display = 'flex';
-
       await loadSubsidiaries();
-      
-      addBotMessage('Olá! Qual é a sua subsidiária?');
-      showSubsidiaryOptions();
+      initializeTab('chat');
     }
 
     async function loadSubsidiaries() {
@@ -652,8 +594,45 @@
       }
     }
 
-    function showSubsidiaryOptions() {
-      chatInputArea.innerHTML = '';
+    function initializeTab(tabName) {
+      tabStates[tabName].initialized = true;
+
+      if (tabName === 'chat') {
+        addMessageToTab('chat', 'Olá! Qual é a sua subsidiária?', 'bot');
+        showSubsidiaryOptions('chat');
+      } else if (tabName === 'resumo-exec' || tabName === 'resumo-ger') {
+        // Abas de resumo serão inicializadas quando forem ativadas
+        if (selectedSubsidiaries.length && selectedPeriod) {
+          generateResumo(tabName);
+        } else {
+          addMessageToTab(tabName, 'Configure seus filtros na aba Chat primeiro!', 'bot');
+          showGoToChatButton(tabName);
+        }
+      } else {
+        addMessageToTab(tabName, 'Em desenvolvimento...', 'bot');
+      }
+    }
+
+    function getTabElements(tabName) {
+      const container = document.getElementById(tabName);
+      return {
+        messages: container.querySelector('.chat-messages'),
+        inputArea: container.querySelector('.input-area')
+      };
+    }
+
+    function addMessageToTab(tabName, text, sender) {
+      const { messages } = getTabElements(tabName);
+      const msg = document.createElement('div');
+      msg.className = `message ${sender}`;
+      msg.innerHTML = `<div class="message-content">${text}</div>`;
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showSubsidiaryOptions(tabName) {
+      const { inputArea } = getTabElements(tabName);
+      inputArea.innerHTML = '';
       const container = document.createElement('div');
       container.className = 'input-options';
 
@@ -661,26 +640,28 @@
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.textContent = sub;
-        btn.addEventListener('click', () => selectSubsidiary(sub));
+        btn.addEventListener('click', () => {
+          selectSubsidiary(tabName, sub);
+        });
         container.appendChild(btn);
       });
 
-      chatInputArea.appendChild(container);
+      inputArea.appendChild(container);
     }
 
-    function selectSubsidiary(sub) {
+    function selectSubsidiary(tabName, sub) {
       selectedSubsidiaries = [sub];
-      addUserMessage(sub);
-      conversationState = 'awaiting_period';
+      addMessageToTab(tabName, sub, 'user');
       
       setTimeout(() => {
-        addBotMessage('Qual período você deseja analisar?');
-        showPeriodOptions();
+        addMessageToTab(tabName, 'Qual período você deseja analisar?', 'bot');
+        showPeriodOptions(tabName);
       }, 500);
     }
 
-    function showPeriodOptions() {
-      chatInputArea.innerHTML = '';
+    function showPeriodOptions(tabName) {
+      const { inputArea } = getTabElements(tabName);
+      inputArea.innerHTML = '';
       
       const select = document.createElement('select');
       select.className = 'period-select';
@@ -712,33 +693,34 @@
       select.addEventListener('change', () => {
         if (select.value) {
           const text = options.find(o => o.value === select.value).text;
-          selectPeriod(select.value, text);
+          selectPeriod(tabName, select.value, text);
         }
       });
 
-      chatInputArea.appendChild(select);
+      inputArea.appendChild(select);
     }
 
-    function selectPeriod(value, text) {
+    function selectPeriod(tabName, value, text) {
       selectedPeriod = value;
-      addUserMessage(text);
-      conversationState = 'ready';
+      addMessageToTab(tabName, text, 'user');
+      tabStates[tabName].conversationState = 'ready';
 
       setTimeout(() => {
-        addBotMessage(`Pronto! Subsidiária: ${selectedSubsidiaries[0]} | Período: ${text}`);
-        showTextInputArea();
+        addMessageToTab(tabName, `Pronto! Subsidiária: ${selectedSubsidiaries[0]} | Período: ${text}`, 'bot');
+        showTextInputArea(tabName);
       }, 500);
     }
 
-    function showTextInputArea() {
-      chatInputArea.innerHTML = '';
+    function showTextInputArea(tabName) {
+      const { inputArea } = getTabElements(tabName);
+      inputArea.innerHTML = '';
       
       const row = document.createElement('div');
       row.className = 'text-input-row';
 
       const input = document.createElement('textarea');
       input.className = 'text-input';
-      input.placeholder = 'Digite sua pergunta...';
+      input.placeholder = 'Faça uma pergunta...';
       input.rows = 1;
 
       const micBtn = document.createElement('button');
@@ -763,12 +745,13 @@
         const text = input.value.trim();
         if (!text) return;
         
-        addUserMessage(text);
+        addMessageToTab(tabName, text, 'user');
         input.value = '';
         input.style.height = 'auto';
+        
+        // TODO: Enviar para Claude para responder sobre o resumo
       }
 
-      // Microfone (Web Speech API)
       micBtn.addEventListener('click', async () => {
         if (!mediaRecorder) {
           try {
@@ -781,9 +764,7 @@
             };
 
             mediaRecorder.onstop = async () => {
-              const audioBlob = new Blob(recordingChunks, { type: 'audio/wav' });
-              console.log('Áudio gravado:', audioBlob);
-              // TODO: Enviar para API de speech-to-text (Anthropic não suporta nativamente)
+              // TODO: Speech-to-text
               micBtn.classList.remove('recording');
               mediaRecorder = null;
             };
@@ -800,22 +781,31 @@
 
       row.appendChild(input);
       row.appendChild(micBtn);
-      chatInputArea.appendChild(row);
-      chatInputArea.appendChild(sendBtn);
+      inputArea.appendChild(row);
+      inputArea.appendChild(sendBtn);
       
       input.focus();
     }
 
-    async function generateResumo(tabName, contentId, contextId) {
-      const contentDiv = document.getElementById(contentId);
-      const contextDiv = document.getElementById(contextId);
+    function showGoToChatButton(tabName) {
+      const { inputArea } = getTabElements(tabName);
+      inputArea.innerHTML = '';
+      
+      const btn = document.createElement('button');
+      btn.className = 'action-btn';
+      btn.textContent = 'Ir para Chat e Configurar Filtros';
+      btn.addEventListener('click', () => {
+        document.querySelector('[data-tab="chat"]').click();
+      });
+      inputArea.appendChild(btn);
+    }
 
-      // Mostrar contexto
-      contextDiv.textContent = `Subsidiária: ${selectedSubsidiaries[0]} | Período: ${selectedPeriod}`;
-      contextDiv.style.display = 'block';
-
-      // Mostrar loading
-      contentDiv.innerHTML = '<div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>';
+    async function generateResumo(tabName) {
+      const { messages, inputArea } = getTabElements(tabName);
+      
+      const type = tabName === 'resumo-exec' ? 'executive' : 'managerial';
+      
+      addMessageToTab(tabName, 'Gerando resumo...', 'bot');
 
       try {
         const response = await fetch(`${API_URL}/api/summary`, {
@@ -826,37 +816,32 @@
             context: { 
               subsidiaries: selectedSubsidiaries, 
               period: selectedPeriod,
-              type: tabName === 'resumo-exec' ? 'executive' : 'managerial'
+              type
             }
           })
         });
 
         const data = await response.json();
 
+        // Remove mensagem de "Gerando..."
+        const lastMsg = messages.lastChild;
+        if (lastMsg) lastMsg.remove();
+
         if (data.success) {
-          contentDiv.innerHTML = `<div class="resumo-content">${data.summary}</div>`;
+          addMessageToTab(tabName, data.summary, 'bot');
+          tabStates[tabName].generated = true;
+          
+          setTimeout(() => {
+            showTextInputArea(tabName);
+          }, 500);
         } else {
-          contentDiv.innerHTML = `<p style="color: red;">Erro: ${data.error}</p>`;
+          addMessageToTab(tabName, `Erro: ${data.error}`, 'bot');
         }
       } catch (error) {
-        contentDiv.innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
+        const lastMsg = messages.lastChild;
+        if (lastMsg) lastMsg.remove();
+        addMessageToTab(tabName, `Erro: ${error.message}`, 'bot');
       }
-    }
-
-    function addBotMessage(text) {
-      const msg = document.createElement('div');
-      msg.className = 'message bot';
-      msg.innerHTML = `<div class="message-content">${text}</div>`;
-      chatArea.appendChild(msg);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    function addUserMessage(text) {
-      const msg = document.createElement('div');
-      msg.className = 'message user';
-      msg.innerHTML = `<div class="message-content">${text}</div>`;
-      chatArea.appendChild(msg);
-      chatArea.scrollTop = chatArea.scrollHeight;
     }
   </script>
 </body>
