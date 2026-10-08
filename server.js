@@ -278,6 +278,63 @@ app.post('/api/validate-key', (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================================================
+// POST /api/chat - Chat com Claude
+// ============================================================================
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, subsidiary, period, apiKey } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Message required' });
+    }
+
+    // Usar a API Key do cliente ou do server
+    const key = apiKey || process.env.CLAUDE_API_KEY;
+    const anthropic = new Anthropic({ apiKey: key });
+
+    // Criar prompt para Claude
+    const systemPrompt = `Você é um assistente especializado em análise de dados do Power BI Cheil.
+Dataset: apollo_gold no BigQuery
+Tabelas: fConsolidated (fatos), dAllDimensions (dimensões), dProducts (produtos)
+Métrica crítica: tRevenueCRM (usar fórmula especial no cálculo)
+Subsidiária: ${subsidiary || 'LAO'}
+Período: ${period || 'Mês atual'}
+
+Quando o usuário fizer uma pergunta:
+1. Entenda o que ele quer saber (métricas, rankings, análises)
+2. Gere uma resposta conversacional baseada nos dados
+3. Se não souber os dados exatos, diga que vai buscar no banco
+
+Responda em português do Brasil, de forma clara e concisa.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [
+        { role: 'user', content: message }
+      ],
+      system: systemPrompt
+    });
+
+    // Extrair texto da resposta
+    const textBlock = response.content.find(block => block.type === 'text');
+    const reply = textBlock?.text || 'Não consegui processar sua mensagem.';
+
+    res.json({ 
+      success: true,
+      reply,
+      subsidiary,
+      period
+    });
+
+  } catch (error) {
+    console.error('[Chat Error]', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });

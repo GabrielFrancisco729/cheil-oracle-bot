@@ -1,848 +1,561 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oráculo de Dados - Cheil BI</title>
-  <style>
-    :root {
-      --accent-purple: #6366f1;
-      --text-dark: #1a1a1a;
-      --text-light: #666;
-      --bg-white: #ffffff;
-      --bg-gray: #f5f5f5;
-      --border-light: #e0e0e0;
-      --success-green: #10b981;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheil Oracle Bot - Power BI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
+        /* ===== HEADER (TODO PRETO) ===== */
+        header {
+            background: #000;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            position: relative;
+            border-bottom: 1px solid white;
+        }
 
-    .container {
-      width: 100%;
-      max-width: 800px;
-      background: var(--bg-white);
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      display: flex;
-      flex-direction: column;
-      height: 90vh;
-      max-height: 800px;
-    }
+        /* Linha diagonal branca */
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 20%;
+            width: 300px;
+            height: 1px;
+            background: white;
+            transform: rotate(-3deg);
+            z-index: 10;
+        }
 
-    .header {
-      background: var(--text-dark);
-      color: white;
-      padding: 16px 20px;
-      border-radius: 16px 16px 0 0;
-      text-align: center;
-      position: relative;
-    }
+        /* Logo section - esquerda (Samsung) */
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 20;
+        }
 
-    .header h1 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
+        .header-left img {
+            height: 32px;
+            width: auto;
+        }
 
-    .header p {
-      font-size: 11px;
-      opacity: 0.9;
-    }
+        /* Título no centro */
+        .header-title {
+            flex: 1;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 500;
+            color: white;
+            letter-spacing: 0.3px;
+            z-index: 20;
+        }
 
-    .disconnect-btn {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11px;
-      color: white;
-      transition: all 0.2s;
-    }
+        /* Logo Cheil - direita */
+        .header-right {
+            display: flex;
+            align-items: center;
+            z-index: 20;
+        }
 
-    .disconnect-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
+        .header-right img {
+            height: 32px;
+            width: auto;
+        }
 
-    /* TABS */
-    .tabs-container {
-      display: flex;
-      border-bottom: 1px solid var(--border-light);
-      background: var(--bg-white);
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
+        /* ===== NAVBAR ===== */
+        .navbar {
+            background: #000;
+            display: flex;
+            align-items: center;
+            height: 40px;
+            border-bottom: 1px solid white;
+            padding: 0 30px;
+            gap: 0;
+            overflow-x: auto;
+        }
 
-    .tabs-container::-webkit-scrollbar {
-      display: none;
-    }
+        .navbar-tabs {
+            display: flex;
+            gap: 0;
+            flex: 1;
+        }
 
-    .tab-btn {
-      flex: 1;
-      min-width: 110px;
-      padding: 12px 14px;
-      border: none;
-      background: var(--bg-white);
-      color: var(--text-light);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      white-space: nowrap;
-      text-align: center;
-    }
+        .tab-btn {
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
 
-    .tab-btn:hover {
-      color: var(--text-dark);
-    }
+        .tab-btn:hover {
+            border-bottom-color: rgba(255, 255, 255, 0.3);
+        }
 
-    .tab-btn.active {
-      color: var(--accent-purple);
-      border-bottom-color: var(--accent-purple);
-    }
+        .tab-btn.active {
+            border-bottom-color: white;
+        }
 
-    /* CHAT LAYOUT */
-    .chat-container {
-      flex: 1;
-      display: none;
-      flex-direction: column;
-      overflow: hidden;
-    }
+        /* Info e dropdown - direita da navbar */
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-left: auto;
+            white-space: nowrap;
+        }
 
-    .chat-container.active {
-      display: flex;
-    }
+        .last-updated {
+            font-size: 11px;
+            color: #999;
+        }
 
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+        /* Dropdown green para seleção de subsidiária */
+        .subsidiary-select {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            min-width: 140px;
+            appearance: none;
+            padding-right: 26px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none'%3E%3Cpath d='M1.5 3.5L5 6.5L8.5 3.5' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+        }
 
-    .message {
-      display: flex;
-      gap: 8px;
-      animation: slideIn 0.3s ease-out;
-    }
+        .subsidiary-select:hover {
+            background-color: #16a34a;
+        }
 
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+        /* Seta para a direita */
+        .navbar-right::after {
+            content: '→';
+            color: white;
+            font-size: 14px;
+            margin-left: 4px;
+        }
 
-    .message.bot {
-      justify-content: flex-start;
-    }
+        /* ===== CONTAINER PRINCIPAL ===== */
+        .container {
+            display: flex;
+            flex: 1;
+            background: white;
+            overflow: hidden;
+        }
 
-    .message.user {
-      justify-content: flex-end;
-    }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            width: 100%;
+        }
 
-    .message-content {
-      max-width: 75%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 13px;
-      line-height: 1.5;
-      word-wrap: break-word;
-    }
+        /* Mensagens */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
 
-    .message.bot .message-content {
-      background: var(--bg-gray);
-      color: var(--text-dark);
-      border-left: 3px solid var(--accent-purple);
-    }
+        .message {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
 
-    .message.user .message-content {
-      background: var(--accent-purple);
-      color: white;
-    }
+        .message.user {
+            justify-content: flex-end;
+        }
 
-    /* INPUT AREA */
-    .input-area {
-      padding: 12px 16px;
-      border-top: 1px solid var(--border-light);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+        .message-content {
+            max-width: 65%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
 
-    .input-options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
+        .message.bot .message-content {
+            background: #f0f0f0;
+            color: #333;
+        }
 
-    .option-btn {
-      padding: 10px 14px;
-      border: 1px solid var(--border-light);
-      background: var(--bg-white);
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-dark);
-      transition: all 0.2s;
-    }
+        .message.user .message-content {
+            background: #000;
+            color: white;
+        }
 
-    .option-btn:hover {
-      border-color: var(--accent-purple);
-      background: rgba(99, 102, 241, 0.05);
-    }
+        /* Input area */
+        .input-area {
+            padding: 20px 30px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
 
-    .option-btn.selected {
-      background: var(--accent-purple);
-      color: white;
-      border-color: var(--accent-purple);
-    }
+        .input-field {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            font-size: 14px;
+        }
 
-    .period-select {
-      padding: 10px 12px;
-      border: 1px solid var(--border-light);
-      border-radius: 8px;
-      font-size: 12px;
-      color: var(--text-dark);
-      background: var(--bg-white);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
+        .input-field:focus {
+            outline: none;
+            border-color: #000;
+        }
 
-    .period-select:hover {
-      border-color: var(--accent-purple);
-    }
+        .send-btn {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
 
-    .period-select:focus {
-      outline: none;
-      border-color: var(--accent-purple);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
-    }
+        .send-btn:hover {
+            background: #222;
+        }
 
-    .text-input-row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-    }
+        .mic-btn {
+            background: #999;
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-    .text-input {
-      flex: 1;
-      padding: 10px 12px;
-      border: 1px solid var(--border-light);
-      border-radius: 8px;
-      font-size: 13px;
-      color: var(--text-dark);
-      resize: none;
-      max-height: 80px;
-      font-family: inherit;
-    }
+        .mic-btn:hover {
+            background: #777;
+        }
 
-    .text-input:focus {
-      outline: none;
-      border-color: var(--accent-purple);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
-    }
+        .mic-btn.active {
+            background: #d32f2f;
+        }
 
-    .mic-btn {
-      padding: 8px 10px;
-      background: var(--bg-gray);
-      border: 1px solid var(--border-light);
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 38px;
-      width: 38px;
-    }
+        /* Buttons de opção */
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
 
-    .mic-btn:hover {
-      background: #e8e8e8;
-      border-color: var(--accent-purple);
-    }
+        .option-btn {
+            background: #e0e0e0;
+            color: #333;
+            border: 1px solid #ccc;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
 
-    .mic-btn.recording {
-      background: #ff4757;
-      color: white;
-      border-color: #ff4757;
-      animation: pulse 0.6s infinite;
-    }
+        .option-btn:hover {
+            background: #d0d0d0;
+        }
 
-    @keyframes pulse {
-      0%, 100% {
-        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
-      }
-      50% {
-        box-shadow: 0 0 0 8px rgba(255, 71, 87, 0);
-      }
-    }
+        .option-btn.selected {
+            background: #000;
+            color: white;
+            border-color: #000;
+        }
 
-    .send-btn {
-      padding: 10px 16px;
-      background: var(--accent-purple);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      transition: all 0.2s;
-      height: 38px;
-      white-space: nowrap;
-    }
+        .loading {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
 
-    .send-btn:hover:not(:disabled) {
-      background: #5558e3;
-    }
+        .loading span {
+            width: 6px;
+            height: 6px;
+            background: #999;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+        }
 
-    .send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+        .loading span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
 
-    /* API KEY SCREEN */
-    .api-key-screen {
-      padding: 40px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-    }
+        .loading span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
 
-    .api-key-screen h2 {
-      font-size: 18px;
-      color: var(--text-dark);
-    }
+        @keyframes bounce {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
 
-    .api-key-screen p {
-      color: var(--text-light);
-      font-size: 13px;
-      line-height: 1.5;
-    }
+        .hidden {
+            display: none;
+        }
 
-    .api-key-input {
-      width: 100%;
-      max-width: 400px;
-      padding: 12px;
-      border: 1px solid var(--border-light);
-      border-radius: 8px;
-      font-size: 13px;
-      margin: 12px 0;
-    }
+        @media (max-width: 768px) {
+            header, .navbar {
+                padding: 0 16px;
+            }
 
-    .api-key-input:focus {
-      outline: none;
-      border-color: var(--accent-purple);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
-    }
+            .header-title {
+                font-size: 14px;
+            }
 
-    .submit-btn {
-      padding: 12px 20px;
-      background: var(--accent-purple);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
+            .messages {
+                padding: 16px;
+            }
 
-    .submit-btn:hover {
-      background: #5558e3;
-    }
+            .message-content {
+                max-width: 85%;
+            }
 
-    .loading {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-
-    .loading-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--accent-purple);
-      border-radius: 50%;
-      animation: bounce 1.4s infinite;
-    }
-
-    .loading-dot:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .loading-dot:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    @keyframes bounce {
-      0%, 80%, 100% {
-        opacity: 0.3;
-        transform: translateY(0);
-      }
-      40% {
-        opacity: 1;
-        transform: translateY(-8px);
-      }
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .action-btn {
-      padding: 8px 12px;
-      border: 1px solid var(--border-light);
-      background: var(--bg-white);
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--accent-purple);
-      transition: all 0.2s;
-    }
-
-    .action-btn:hover {
-      background: var(--bg-gray);
-      border-color: var(--accent-purple);
-    }
-  </style>
+            .input-area {
+                padding: 12px 16px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <!-- API KEY SCREEN -->
-    <div id="apiKeyScreen" style="flex: 1; display: flex;">
-      <div class="api-key-screen" style="width: 100%;">
-        <h2>Bem-vindo ao Oráculo</h2>
-        <p>Para começar, você precisa fornecer sua API Key do Claude</p>
-        <input type="password" id="apiKeyInput" class="api-key-input" placeholder="sk-ant-...">
-        <button class="submit-btn" id="submitApiKeyBtn">Conectar</button>
-      </div>
+    <!-- HEADER (TODO PRETO) -->
+    <header>
+        <div class="header-left">
+            <img id="samsung-logo" src="/samsung-logo.png" alt="Samsung">
+        </div>
+        <div class="header-title">CRM LAO • 1. Performance Overview</div>
+        <div class="header-right">
+            <img id="cheil-logo" src="/cheil-logo.webp" alt="Cheil">
+        </div>
+    </header>
+
+    <!-- NAVBAR COM TABS E DROPDOWN -->
+    <nav class="navbar">
+        <div class="navbar-tabs" id="navbar-tabs">
+            <button class="tab-btn active" data-tab="chat">1.OVERVIEW</button>
+            <button class="tab-btn" data-tab="resumo-executivo">2.TARGETS</button>
+            <button class="tab-btn" data-tab="resumo-gerencial">3.EXPLORATORY</button>
+            <button class="tab-btn" data-tab="slides">4.CHANNELS</button>
+            <button class="tab-btn" data-tab="best-worst">5.PRODUCTS</button>
+            <button class="tab-btn" data-tab="placeholder1">7.OPI CDP</button>
+            <button class="tab-btn" data-tab="placeholder2">8.CART FUNNEL</button>
+            <button class="tab-btn" data-tab="reports">REPORTS</button>
+        </div>
+
+        <div class="navbar-right">
+            <span class="last-updated">Last Updated: <span id="update-time">--:--</span></span>
+            <select class="subsidiary-select" id="subsidiary-select">
+                <option value="">🟢 CRM SEDA</option>
+            </select>
+        </div>
+    </nav>
+
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="container">
+        <!-- TAB: CHAT (OVERVIEW) -->
+        <div class="chat-container" id="tab-chat">
+            <div class="messages" id="messages"></div>
+            <div class="input-area">
+                <input class="input-field" id="message-input" type="text" placeholder="Faça sua pergunta..." />
+                <button class="send-btn" id="send-btn">Enviar</button>
+                <button class="mic-btn" id="mic-btn">🎤</button>
+            </div>
+        </div>
+
+        <!-- TABS PLACEHOLDER -->
+        <div class="chat-container hidden" id="tab-resumo-executivo">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">Resumo Executivo - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container hidden" id="tab-resumo-gerencial">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">Resumo Gerencial - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container hidden" id="tab-slides">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">Slides - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container hidden" id="tab-best-worst">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">Best x Worst - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container hidden" id="tab-placeholder1">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">7.OPI CDP - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container hidden" id="tab-placeholder2">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">8.CART FUNNEL - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container hidden" id="tab-reports">
+            <div class="messages">
+                <div class="message bot">
+                    <div class="message-content">REPORTS - Em desenvolvimento</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- MAIN SCREEN -->
-    <div id="mainScreen" style="display: none; flex: 1; display: flex; flex-direction: column;">
-      <!-- HEADER -->
-      <div class="header">
-        <button class="disconnect-btn" id="disconnectBtn">Sair</button>
-        <h1>Oráculo de Dados</h1>
-        <p>Cheil BI - Análise de Performance</p>
-      </div>
+    <script>
+        const API_BASE = '/api';
+        let selectedSubsidiary = null;
+        let selectedPeriod = null;
+        let conversationContext = [];
 
-      <!-- TABS -->
-      <div class="tabs-container">
-        <button class="tab-btn active" data-tab="chat">💬 Chat</button>
-        <button class="tab-btn" data-tab="resumo-exec">📊 Resumo Executivo</button>
-        <button class="tab-btn" data-tab="resumo-ger">📈 Resumo Gerencial</button>
-        <button class="tab-btn" data-tab="slides">📑 Slides</button>
-        <button class="tab-btn" data-tab="best-worst">⭐ Best x Worst</button>
-      </div>
+        // ===== TAB NAVIGATION =====
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active de todos
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.chat-container').forEach(c => c.classList.add('hidden'));
 
-      <!-- CHAT TABS -->
-      <div id="chat" class="chat-container active">
-        <div class="chat-messages"></div>
-        <div class="input-area"></div>
-      </div>
-
-      <div id="resumo-exec" class="chat-container">
-        <div class="chat-messages"></div>
-        <div class="input-area"></div>
-      </div>
-
-      <div id="resumo-ger" class="chat-container">
-        <div class="chat-messages"></div>
-        <div class="input-area"></div>
-      </div>
-
-      <div id="slides" class="chat-container">
-        <div class="chat-messages"></div>
-        <div class="input-area"></div>
-      </div>
-
-      <div id="best-worst" class="chat-container">
-        <div class="chat-messages"></div>
-        <div class="input-area"></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const API_URL = window.location.origin;
-    const API_KEY_STORAGE = 'cheil_oracle_api_key';
-    
-    let apiKey = null;
-    let selectedSubsidiaries = [];
-    let selectedPeriod = null;
-    let subsidiariesList = [];
-    let mediaRecorder = null;
-    let recordingChunks = [];
-
-    // State para cada aba
-    const tabStates = {
-      chat: { initialized: false, conversationState: 'awaiting_subsidiary' },
-      'resumo-exec': { initialized: false, conversationState: 'ready', generated: false },
-      'resumo-ger': { initialized: false, conversationState: 'ready', generated: false },
-      'slides': { initialized: false, conversationState: 'ready' },
-      'best-worst': { initialized: false, conversationState: 'ready' }
-    };
-
-    const apiKeyScreen = document.getElementById('apiKeyScreen');
-    const mainScreen = document.getElementById('mainScreen');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const submitApiKeyBtn = document.getElementById('submitApiKeyBtn');
-    const disconnectBtn = document.getElementById('disconnectBtn');
-
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tabName = btn.dataset.tab;
-        
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.chat-container').forEach(a => a.classList.remove('active'));
-        
-        btn.classList.add('active');
-        document.getElementById(tabName).classList.add('active');
-
-        // Inicializar aba se necessário
-        if (!tabStates[tabName].initialized) {
-          initializeTab(tabName);
-        }
-
-        // Auto-gerar resumo se for abas de resumo
-        if ((tabName === 'resumo-exec' || tabName === 'resumo-ger') && 
-            selectedSubsidiaries.length && selectedPeriod &&
-            !tabStates[tabName].generated) {
-          generateResumo(tabName);
-        }
-      });
-    });
-
-    // API Key
-    const storedApiKey = localStorage.getItem(API_KEY_STORAGE);
-    if (storedApiKey) {
-      apiKey = storedApiKey;
-      showMainScreen();
-    }
-
-    submitApiKeyBtn.addEventListener('click', () => {
-      const key = apiKeyInput.value.trim();
-      if (!key) {
-        alert('Digite sua API Key!');
-        return;
-      }
-      apiKey = key;
-      localStorage.setItem(API_KEY_STORAGE, key);
-      showMainScreen();
-    });
-
-    disconnectBtn.addEventListener('click', () => {
-      localStorage.removeItem(API_KEY_STORAGE);
-      location.reload();
-    });
-
-    async function showMainScreen() {
-      apiKeyScreen.style.display = 'none';
-      mainScreen.style.display = 'flex';
-      await loadSubsidiaries();
-      initializeTab('chat');
-    }
-
-    async function loadSubsidiaries() {
-      try {
-        const response = await fetch(`${API_URL}/api/subsidiaries`);
-        const data = await response.json();
-        
-        if (data.success && data.subsidiaries) {
-          let subs = data.subsidiaries;
-          const selaGroup = subs.filter(s => s.startsWith('SELA'));
-          const others = subs.filter(s => !s.startsWith('SELA'));
-          
-          subsidiariesList = ['LAO', ...others, ...(selaGroup.length > 0 ? ['SELA'] : [])];
-        }
-      } catch (error) {
-        console.error('Error loading subsidiaries:', error);
-      }
-    }
-
-    function initializeTab(tabName) {
-      tabStates[tabName].initialized = true;
-
-      if (tabName === 'chat') {
-        addMessageToTab('chat', 'Olá! Qual é a sua subsidiária?', 'bot');
-        showSubsidiaryOptions('chat');
-      } else if (tabName === 'resumo-exec' || tabName === 'resumo-ger') {
-        // Abas de resumo serão inicializadas quando forem ativadas
-        if (selectedSubsidiaries.length && selectedPeriod) {
-          generateResumo(tabName);
-        } else {
-          addMessageToTab(tabName, 'Configure seus filtros na aba Chat primeiro!', 'bot');
-          showGoToChatButton(tabName);
-        }
-      } else {
-        addMessageToTab(tabName, 'Em desenvolvimento...', 'bot');
-      }
-    }
-
-    function getTabElements(tabName) {
-      const container = document.getElementById(tabName);
-      return {
-        messages: container.querySelector('.chat-messages'),
-        inputArea: container.querySelector('.input-area')
-      };
-    }
-
-    function addMessageToTab(tabName, text, sender) {
-      const { messages } = getTabElements(tabName);
-      const msg = document.createElement('div');
-      msg.className = `message ${sender}`;
-      msg.innerHTML = `<div class="message-content">${text}</div>`;
-      messages.appendChild(msg);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function showSubsidiaryOptions(tabName) {
-      const { inputArea } = getTabElements(tabName);
-      inputArea.innerHTML = '';
-      const container = document.createElement('div');
-      container.className = 'input-options';
-
-      subsidiariesList.forEach(sub => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        btn.textContent = sub;
-        btn.addEventListener('click', () => {
-          selectSubsidiary(tabName, sub);
+                // Adiciona active ao clicado
+                btn.classList.add('active');
+                const tabName = btn.dataset.tab;
+                document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            });
         });
-        container.appendChild(btn);
-      });
 
-      inputArea.appendChild(container);
-    }
+        // ===== CARREGAR SUBSIDIÁRIAS =====
+        async function loadSubsidiaries() {
+            try {
+                const response = await fetch(`${API_BASE}/subsidiaries`);
+                const data = await response.json();
 
-    function selectSubsidiary(tabName, sub) {
-      selectedSubsidiaries = [sub];
-      addMessageToTab(tabName, sub, 'user');
-      
-      setTimeout(() => {
-        addMessageToTab(tabName, 'Qual período você deseja analisar?', 'bot');
-        showPeriodOptions(tabName);
-      }, 500);
-    }
+                const select = document.getElementById('subsidiary-select');
+                data.subsidiaries.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = `🟢 ${sub}`;
+                    select.appendChild(option);
+                });
 
-    function showPeriodOptions(tabName) {
-      const { inputArea } = getTabElements(tabName);
-      inputArea.innerHTML = '';
-      
-      const select = document.createElement('select');
-      select.className = 'period-select';
-      
-      const options = [
-        { value: 'quarter_current', text: 'Quarter Atual' },
-        { value: 'quarter_last', text: 'Quarter Passado' },
-        { value: 'current_week', text: 'Semana Atual' },
-        { value: 'last_week', text: 'Semana Passada' },
-        { value: 'current_month', text: 'Mês Corrente' },
-        { value: 'last_month', text: 'Mês Passado' },
-        { value: 'all_time', text: 'Todo Período' }
-      ];
-
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Selecione um período...';
-      placeholder.disabled = true;
-      placeholder.selected = true;
-      select.appendChild(placeholder);
-
-      options.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.text;
-        select.appendChild(option);
-      });
-
-      select.addEventListener('change', () => {
-        if (select.value) {
-          const text = options.find(o => o.value === select.value).text;
-          selectPeriod(tabName, select.value, text);
-        }
-      });
-
-      inputArea.appendChild(select);
-    }
-
-    function selectPeriod(tabName, value, text) {
-      selectedPeriod = value;
-      addMessageToTab(tabName, text, 'user');
-      tabStates[tabName].conversationState = 'ready';
-
-      setTimeout(() => {
-        addMessageToTab(tabName, `Pronto! Subsidiária: ${selectedSubsidiaries[0]} | Período: ${text}`, 'bot');
-        showTextInputArea(tabName);
-      }, 500);
-    }
-
-    function showTextInputArea(tabName) {
-      const { inputArea } = getTabElements(tabName);
-      inputArea.innerHTML = '';
-      
-      const row = document.createElement('div');
-      row.className = 'text-input-row';
-
-      const input = document.createElement('textarea');
-      input.className = 'text-input';
-      input.placeholder = 'Faça uma pergunta...';
-      input.rows = 1;
-
-      const micBtn = document.createElement('button');
-      micBtn.className = 'mic-btn';
-      micBtn.textContent = '🎤';
-      micBtn.title = 'Usar microfone';
-
-      const sendBtn = document.createElement('button');
-      sendBtn.className = 'send-btn';
-      sendBtn.textContent = 'Enviar';
-
-      input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          sendMessage();
-        }
-      });
-
-      sendBtn.addEventListener('click', sendMessage);
-
-      function sendMessage() {
-        const text = input.value.trim();
-        if (!text) return;
-        
-        addMessageToTab(tabName, text, 'user');
-        input.value = '';
-        input.style.height = 'auto';
-        
-        // TODO: Enviar para Claude para responder sobre o resumo
-      }
-
-      micBtn.addEventListener('click', async () => {
-        if (!mediaRecorder) {
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            recordingChunks = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-              recordingChunks.push(event.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-              // TODO: Speech-to-text
-              micBtn.classList.remove('recording');
-              mediaRecorder = null;
-            };
-
-            mediaRecorder.start();
-            micBtn.classList.add('recording');
-          } catch (error) {
-            alert('Erro ao acessar o microfone: ' + error.message);
-          }
-        } else {
-          mediaRecorder.stop();
-        }
-      });
-
-      row.appendChild(input);
-      row.appendChild(micBtn);
-      inputArea.appendChild(row);
-      inputArea.appendChild(sendBtn);
-      
-      input.focus();
-    }
-
-    function showGoToChatButton(tabName) {
-      const { inputArea } = getTabElements(tabName);
-      inputArea.innerHTML = '';
-      
-      const btn = document.createElement('button');
-      btn.className = 'action-btn';
-      btn.textContent = 'Ir para Chat e Configurar Filtros';
-      btn.addEventListener('click', () => {
-        document.querySelector('[data-tab="chat"]').click();
-      });
-      inputArea.appendChild(btn);
-    }
-
-    async function generateResumo(tabName) {
-      const { messages, inputArea } = getTabElements(tabName);
-      
-      const type = tabName === 'resumo-exec' ? 'executive' : 'managerial';
-      
-      addMessageToTab(tabName, 'Gerando resumo...', 'bot');
-
-      try {
-        const response = await fetch(`${API_URL}/api/summary`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            apiKey,
-            context: { 
-              subsidiaries: selectedSubsidiaries, 
-              period: selectedPeriod,
-              type
+                // Carregar subsidiárias iniciais
+                if (data.subsidiaries.length > 0) {
+                    selectedSubsidiary = data.subsidiaries[0];
+                    select.value = selectedSubsidiary;
+                }
+            } catch (err) {
+                console.error('Erro ao carregar subsidiárias:', err);
             }
-          })
+        }
+
+        // ===== ATUALIZAR HORÁRIO =====
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('update-time').textContent = timeStr;
+        }
+
+        // ===== ENVIAR MENSAGEM =====
+        document.getElementById('send-btn').addEventListener('click', async () => {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Mostrar mensagem do usuário
+            addMessage(message, 'user');
+            input.value = '';
+
+            // Chamar Claude API (simples)
+            try {
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message,
+                        subsidiary: selectedSubsidiary,
+                        period: selectedPeriod
+                    })
+                });
+
+                const data = await response.json();
+                addMessage(data.reply, 'bot');
+            } catch (err) {
+                addMessage('Erro ao processar sua mensagem.', 'bot');
+            }
         });
 
-        const data = await response.json();
-
-        // Remove mensagem de "Gerando..."
-        const lastMsg = messages.lastChild;
-        if (lastMsg) lastMsg.remove();
-
-        if (data.success) {
-          addMessageToTab(tabName, data.summary, 'bot');
-          tabStates[tabName].generated = true;
-          
-          setTimeout(() => {
-            showTextInputArea(tabName);
-          }, 500);
-        } else {
-          addMessageToTab(tabName, `Erro: ${data.error}`, 'bot');
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.innerHTML = `<div class="message-content">${text}</div>`;
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-      } catch (error) {
-        const lastMsg = messages.lastChild;
-        if (lastMsg) lastMsg.remove();
-        addMessageToTab(tabName, `Erro: ${error.message}`, 'bot');
-      }
-    }
-  </script>
+
+        // ===== INICIALIZAR =====
+        loadSubsidiaries();
+        updateTime();
+        setInterval(updateTime, 60000);
+
+        // Mensagem inicial
+        addMessage('Olá! Bem-vindo ao Oracle de Dados. Selecione uma subsidiária e comece a explorar os dados.', 'bot');
+    </script>
 </body>
 </html>
