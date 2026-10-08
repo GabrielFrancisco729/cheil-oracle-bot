@@ -1,287 +1,99 @@
+'use strict';
+require('dotenv').config();
 const express = require('express');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const { BigQuery } = require('@google-cloud/bigquery');
 const path = require('path');
+const { createDataService, validateContext } = require('./lib/data');
+const { createAIService } = require('./lib/ai');
 
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-const BQ_CONFIG = {
-  projectId: process.env.GCP_PROJECT_ID || 'cheil-bi',
-  dataset: process.env.BQ_DATASET_MAIN || 'apollo_gold',
-};
-
-let bigqueryConfig = { projectId: BQ_CONFIG.projectId };
-
-if (process.env.GCP_SERVICE_ACCOUNT_JSON) {
-  try {
-    const serviceAccount = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_JSON);
-    bigqueryConfig.credentials = serviceAccount;
-  } catch (error) {
-    console.error('GCP Auth Error:', error.message);
+function integerEnv(env, key, fallback) {
+  const value = Number(env[key] || fallback);
+  if (!Number.isInteger(value) || value < 1) throw new Error(`${key} deve ser um inteiro positivo.`);
+  return value;
+}
+function validateConversation(body) {
+  const message = body.message;
+  const history = body.history ?? [];
+  if (typeof message !== 'string' || !message.trim() || message.length > 4000) throw Object.assign(new Error('A pergunta deve ter entre 1 e 4.000 caracteres.'), { status: 400 });
+  if (!Array.isArray(history) || history.length > 20 || history.some((m, i) => !m || m.role !== (i % 2 === 0 ? 'user' : 'assistant') || typeof m.content !== 'string' || !m.content.trim() || m.content.length > 12000) || history.length % 2 || JSON.stringify(history).length > 90000) throw Object.assign(new Error('Histórico de conversa inválido.'), { status: 400 });
+  return { message: message.trim(), history: history.map(({ role, content }) => ({ role, content })) };
+}
+function createApp({ env = process.env, dataService, aiService } = {}) {
+  const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', Number(env.TRUST_PROXY_HOPS || (env.RENDER ? 1 : 0)));
+  app.use(express.json({ limit: '128kb' }));
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'");
+    next();
+  });
+  if (!dataService) {
+    const config = { projectId: env.GCP_PROJECT_ID || 'cheil-bi', dataset: env.BQ_DATASET_MAIN || 'apollo_gold', location: env.BQ_LOCATION || 'US', timezone: env.APP_TIMEZONE || 'America/Sao_Paulo', maximumBytesBilled: env.BQ_MAXIMUM_BYTES_BILLED || '10000000000' };
+    const credentials = env.GCP_SERVICE_ACCOUNT_JSON ? JSON.parse(env.GCP_SERVICE_ACCOUNT_JSON) : undefined;
+    dataService = createDataService(new BigQuery({ projectId: config.projectId, ...(credentials ? { credentials } : {}) }), config);
   }
-}
-
-const bigquery = new BigQuery(bigqueryConfig);
-
-console.log(`\n╔════════════════════════════════════════╗`);
-console.log(`║   🔮 Oráculo de Dados - Cheil BI     ║`);
-console.log(`║   Servidor rodando em: :${PORT}       ║`);
-console.log(`╚════════════════════════════════════════╝\n`);
-
-// ============================================================================
-// GET SUBSIDIARIES
-// ============================================================================
-
-app.get('/api/subsidiaries', async (req, res) => {
-  try {
-    const query = `
-      SELECT DISTINCT SUB 
-      FROM \`cheil-bi.apollo_gold.dAllDimensions\`
-      WHERE SUB IS NOT NULL
-      ORDER BY SUB ASC
-    `;
-    
-    const [rows] = await bigquery.query({ query, location: 'US' });
-    const subs = rows.map(row => row.SUB).filter(Boolean).filter(sub => sub !== '-');
-    
-    res.json({ success: true, subsidiaries: subs });
-  } catch (error) {
-    res.json({ success: true, subsidiaries: [] });
+  if (!aiService && env.ANTHROPIC_API_KEY) aiService = createAIService(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 60000, maxRetries: 1 }), dataService, env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001');
+  app.get('/api/config', (req, res) => res.json({ success: true, aiConfigured: Boolean(aiService) }));
+  app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  app.get('/api/subsidiaries', async (req, res, next) => {
+    try { res.json({ success: true, subsidiaries: await dataService.subsidiaries() }); } catch (error) { error.service = 'bigquery'; next(error); }
+  });
+  const windowMs = 15 * 60 * 1000;
+  const limits = new Map();
+  const perWindow = integerEnv(env, 'AI_REQUESTS_PER_15_MIN', 30);
+  const perDay = integerEnv(env, 'AI_REQUESTS_PER_DAY', 300);
+  const maxConcurrent = integerEnv(env, 'AI_MAX_CONCURRENT', 6);
+  let dailyDate = '', dailyCount = 0, active = 0;
+  function allowAI(req, res, next) {
+    if (!aiService) return res.status(503).json({ error: 'Configure ANTHROPIC_API_KEY no servidor para ativar o assistente.' });
+    if (req.headers.origin && req.headers.origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: 'Origem da solicitação não permitida.' });
+    const now = Date.now(), day = new Date().toISOString().slice(0, 10);
+    if (dailyDate !== day) { dailyDate = day; dailyCount = 0; }
+    for (const [key, entry] of limits) if (entry.until <= now) limits.delete(key);
+    const key = req.ip;
+    const entry = limits.get(key) || { count: 0, until: now + windowMs };
+    if (entry.count >= perWindow || dailyCount >= perDay || active >= maxConcurrent) {
+      res.setHeader('Retry-After', dailyCount >= perDay ? 3600 : active >= maxConcurrent ? 10 : Math.ceil((entry.until - now) / 1000));
+      return res.status(429).json({ error: dailyCount >= perDay ? 'O limite diário de uso foi atingido. Tente novamente amanhã.' : 'Muitas solicitações no momento. Aguarde e tente novamente.' });
+    }
+    entry.count++; limits.set(key, entry); dailyCount++; active++;
+    let released = false;
+    res.locals.releaseAI = () => { if (!released) { released = true; active--; } };
+    next();
   }
-});
-
-// ============================================================================
-// EXECUTE QUERY
-// ============================================================================
-
-async function executeQuery(sql) {
-  try {
-    const [rows] = await bigquery.query({ query: sql, location: 'US' });
-    return rows;
-  } catch (error) {
-    throw new Error(`BigQuery: ${error.message}`);
-  }
+  app.post('/api/chat', (req, res, next) => {
+    try { res.locals.context = validateContext(req.body.context); res.locals.conversation = validateConversation(req.body); next(); } catch (error) { next(error); }
+  }, allowAI, async (req, res, next) => {
+    try {
+      const { history, message } = res.locals.conversation;
+      res.json({ success: true, ...await aiService.chat(res.locals.context, history, message) });
+    } catch (error) { next(error); } finally { res.locals.releaseAI(); }
+  });
+  app.post('/api/summary', (req, res, next) => {
+    try {
+      res.locals.context = validateContext(req.body.context);
+      res.locals.summaryType = req.body.type || req.body.context?.type || 'executive';
+      if (!['executive', 'managerial'].includes(res.locals.summaryType)) throw Object.assign(new Error('Tipo de resumo inválido.'), { status: 400 });
+      next();
+    } catch (error) { next(error); }
+  }, allowAI, async (req, res, next) => {
+    try { res.json({ success: true, type: res.locals.summaryType, ...await aiService.summary(res.locals.context, res.locals.summaryType) }); } catch (error) { next(error); } finally { res.locals.releaseAI(); }
+  });
+  app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0 }));
+  app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    const inputError = error.type === 'entity.parse.failed' || error.type === 'entity.too.large';
+    const status = inputError ? (error.type === 'entity.too.large' ? 413 : 400) : error.status === 400 ? 400 : error.status === 429 ? 429 : 502;
+    console.error('[API error]', { route: req.path, status, name: error.name });
+    res.status(status).json({ error: inputError ? 'Solicitação inválida ou muito grande.' : status === 400 ? error.message : status === 429 ? 'O provedor atingiu um limite de uso. Aguarde e tente novamente.' : error.service === 'bigquery' ? 'Não foi possível consultar as subsidiárias. Verifique a conexão do BigQuery.' : 'Não foi possível concluir a análise. Verifique as credenciais e os logs do servidor.' });
+  });
+  return app;
 }
-
-// ============================================================================
-// QUERY: BIG NUMBERS
-// ============================================================================
-
-function getBigNumbersSQL(context) {
-  const subsidiaries = context.subsidiaries || ['LAO'];
-  const isLao = subsidiaries.includes('LAO');
-  
-  let subClause = isLao 
-    ? ''
-    : `AND d.SUB IN (${subsidiaries.map(s => `'${s}'`).join(',')})`;
-  
-  const whereClause = `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${subClause}`;
-  
-  return `
-SELECT 
-  SUM(fc.DELIVERED) as delivered,
-  SUM(fc.OPENS) as opens,
-  SUM(fc.CLICKS) as clicks,
-  SUM(fc.Total_visits) as visits,
-  SUM(fc.Total_orders) as orders,
-  SUM(fc.Total_units) as units,
-  ROUND((SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
-         SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
-         SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
-         SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
-         SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
-         (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
-        SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as revenue,
-  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
-  ROUND(SUM(fc.CLICKS) / NULLIF(SUM(fc.OPENS), 0), 4) as click_rate,
-  ROUND(SUM(fc.Total_orders) / NULLIF(SUM(fc.Total_visits), 0), 4) as cvr
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-${whereClause}`;
+if (require.main === module) {
+  createApp().listen(process.env.PORT || 10000, '0.0.0.0', () => console.log('Oráculo de Dados pronto.'));
 }
-
-// ============================================================================
-// QUERY: TOP 5 CAMPAIGNS
-// ============================================================================
-
-function getTopCampaignsSQL(context) {
-  const subsidiaries = context.subsidiaries || ['LAO'];
-  const isLao = subsidiaries.includes('LAO');
-  
-  let subClause = isLao 
-    ? ''
-    : `AND d.SUB IN (${subsidiaries.map(s => `'${s}'`).join(',')})`;
-  
-  const whereClause = `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${subClause}`;
-  
-  return `
-SELECT 
-  IFNULL(d.CAMPAIGN, 'N/A') as campaign,
-  SUM(fc.DELIVERED) as delivered,
-  ROUND((SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
-         SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
-         SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
-         SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
-         SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
-         (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
-        SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as revenue,
-  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
-  SUM(fc.Total_orders) as orders
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-${whereClause}
-GROUP BY d.CAMPAIGN
-ORDER BY revenue DESC
-LIMIT 5`;
-}
-
-// ============================================================================
-// QUERY: TOP 5 PRODUCTS
-// ============================================================================
-
-function getTopProductsSQL(context) {
-  const subsidiaries = context.subsidiaries || ['LAO'];
-  const isLao = subsidiaries.includes('LAO');
-  
-  let subClause = isLao 
-    ? ''
-    : `AND d.SUB IN (${subsidiaries.map(s => `'${s}'`).join(',')})`;
-  
-  const whereClause = `WHERE DATE_TRUNC(fc.Date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH) ${subClause}`;
-  
-  return `
-SELECT 
-  dp.PRODUCT as product,
-  SUM(fc.DELIVERED) as delivered,
-  ROUND((SUM(IF(fc.Source = 'ANALYTICS', fc.Revenue_SEDA, 0)) +
-         SUM(IF(fc.Source = 'VTEX', fc.Revenue_SEDA, 0)) +
-         SUM(IF(d.CHANNEL = 'APP PUSH', fc.Revenue_SEDA, 0)) +
-         SUM(IF(d.CHANNEL = 'WEB PUSH', fc.Revenue_SEDA, 0)) +
-         SUM(IF(fc.Source LIKE 'GA4%', fc.Revenue_SEDA, 0)) +
-         (SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)) * 0.044)) -
-        SUM(IF(fc.DATA_SOURCE = 'AFFILIATE', fc.Revenue_SEDA, 0)), 2) as revenue,
-  ROUND(SUM(fc.OPENS) / NULLIF(SUM(fc.DELIVERED), 0), 4) as open_rate,
-  SUM(fc.Total_orders) as orders
-FROM \`cheil-bi.apollo_gold.fConsolidated\` fc
-JOIN \`cheil-bi.apollo_gold.dProducts\` dp ON fc.Product = dp.SKU
-LEFT JOIN \`cheil-bi.apollo_gold.dAllDimensions\` d ON fc.Tracking_code = d.TrackingCode
-${whereClause}
-GROUP BY dp.PRODUCT
-ORDER BY revenue DESC
-LIMIT 5`;
-}
-
-// ============================================================================
-// FORMAT SUMMARY
-// ============================================================================
-
-async function formatSummary(bigNumbers, campaigns, products, apiKey) {
-  const bn = bigNumbers[0] || {};
-  
-  // Calcular AOV
-  bn.aov = bn.orders > 0 ? bn.revenue / bn.orders : 0;
-  
-  // Formatar números
-  const fmt = (n) => {
-    if (!n) return '0';
-    if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-    if (n >= 1000) return (n / 1000).toFixed(2) + 'K';
-    return Math.round(n).toString();
-  };
-  
-  const fmtMoney = (n) => {
-    if (!n) return 'R$ 0,00';
-    return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
-  };
-
-  const summary = `
-RESUMO EXECUTIVO
-
-──────────────────────────────────
-
-INDICADORES PRINCIPAIS
-
-Deliveries:   ${fmt(bn.delivered)}
-Opens:        ${fmt(bn.opens)}        OR%: ${((bn.open_rate || 0) * 100).toFixed(2)}%
-Clicks:       ${fmt(bn.clicks)}        CTR%: ${((bn.click_rate || 0) * 100).toFixed(2)}%
-Visits:       ${fmt(bn.visits)}        CVR%: ${((bn.cvr || 0) * 100).toFixed(2)}%
-Orders:       ${fmt(bn.orders)}
-Units:        ${fmt(bn.units)}
-Revenue:      ${fmtMoney(bn.revenue)}    AOV: ${fmtMoney(bn.aov || 0)}
-
-──────────────────────────────────
-
-TOP 5 CAMPANHAS
-
-${campaigns && campaigns.length > 0 ? campaigns.map((c, i) => 
-  `${i+1}. ${c.campaign || 'N/A'}
-   Revenue: ${fmtMoney(c.revenue)} | Deliveries: ${fmt(c.delivered)} | OR: ${((c.open_rate || 0) * 100).toFixed(2)}% | Orders: ${fmt(c.orders)}`
-).join('\n\n') : 'Sem dados'}
-
-──────────────────────────────────
-
-TOP 5 PRODUTOS
-
-${products && products.length > 0 ? products.map((p, i) => 
-  `${i+1}. ${p.product}
-   Revenue: ${fmtMoney(p.revenue)} | Deliveries: ${fmt(p.delivered)} | OR: ${((p.open_rate || 0) * 100).toFixed(2)}% | Orders: ${fmt(p.orders)}`
-).join('\n\n') : 'Sem dados'}
-
-──────────────────────────────────`;
-
-  return summary;
-}
-
-// ============================================================================
-// ROUTES
-// ============================================================================
-
-app.post('/api/summary', async (req, res) => {
-  try {
-    const { apiKey, context } = req.body;
-
-    if (!apiKey) return res.status(401).json({ error: 'API Key required' });
-
-    const subs = context?.subsidiaries || ['LAO'];
-    console.log(`[Summary] ${subs.join(', ')} | ${context?.period || 'current_month'}`);
-
-    // Executar 3 queries
-    const bigNumbers = await executeQuery(getBigNumbersSQL(context));
-    const campaigns = await executeQuery(getTopCampaignsSQL(context));
-    const products = await executeQuery(getTopProductsSQL(context));
-
-    // Formatar resumo
-    const summary = await formatSummary(bigNumbers, campaigns, products, apiKey);
-
-    res.json({ 
-      success: true, 
-      summary,
-      data: { bigNumbers: bigNumbers[0], campaigns, products }
-    });
-  } catch (error) {
-    console.error('[Error]', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/validate-key', (req, res) => {
-  const { apiKey } = req.body;
-  
-  if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-    return res.status(400).json({ error: 'Invalid API Key' });
-  }
-  
-  res.json({ success: true });
-});
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-app.listen(PORT, () => {
-  console.log(`✅ Server ready on port ${PORT}\n`);
-});
+module.exports = { createApp, validateConversation };

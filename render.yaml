@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: cheil-oracle-bot
+    runtime: node
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-haiku-4-5-20251001
+      - key: GCP_PROJECT_ID
+        value: cheil-bi
+      - key: BQ_DATASET_MAIN
+        value: apollo_gold
+      - key: BQ_LOCATION
+        value: US
+      - key: APP_TIMEZONE
+        value: America/Sao_Paulo
+      - key: GCP_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: AI_REQUESTS_PER_15_MIN
+        value: "30"
+      - key: AI_REQUESTS_PER_DAY
+        value: "300"
+      - key: AI_MAX_CONCURRENT
+        value: "6"
+      - key: BQ_MAXIMUM_BYTES_BILLED
+        value: "10000000000"
