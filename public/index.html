@@ -5,432 +5,530 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Oráculo de Dados - Cheil BI</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
     :root {
-      --primary-dark: #1a1a1a;
-      --primary-light: #ffffff;
-      --accent-purple: #6b5fb3;
-      --accent-blue: #5b7cfa;
-      --bg-gray: #f8f9fa;
-      --border-light: #e9ecef;
-      --text-dark: #212529;
-      --text-light: #6c757d;
+      --accent-purple: #6366f1;
+      --text-dark: #1a1a1a;
+      --text-light: #666;
+      --bg-white: #ffffff;
+      --bg-gray: #f5f5f5;
+      --border-light: #e0e0e0;
+      --success-green: #10b981;
     }
-    
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, var(--accent-purple) 0%, #8b7cc8 100%);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
-      padding: 20px;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: var(--primary-light);
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      overflow: hidden;
-    }
-    
-    .header {
-      background: var(--primary-dark);
-      color: var(--primary-light);
-      padding: 30px;
-      text-align: center;
-      border-bottom: 4px solid var(--accent-purple);
-    }
-    
-    .header h1 { font-size: 28px; margin-bottom: 5px; }
-    .header p { font-size: 14px; color: #aaa; }
-    
-    .disconnect-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      padding: 8px 16px;
-      background: var(--text-light);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    
-    .content { padding: 30px; }
-    
-    #filterScreen { display: block; }
-    #summaryScreen { display: none; }
-    #chatScreen { display: none; }
-    
-    .filter-section {
-      margin-bottom: 30px;
-    }
-    
-    .filter-section label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: var(--text-dark);
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .filter-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px;
-    }
-    
-    .filter-btn {
-      padding: 12px 16px;
-      border: 2px solid var(--border-light);
-      background: var(--bg-gray);
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.2s;
-      color: var(--text-dark);
-    }
-    
-    .filter-btn:hover { border-color: var(--accent-purple); background: #f0e6ff; }
-    .filter-btn.active { background: var(--accent-purple); color: white; border-color: var(--accent-purple); }
-    
-    .start-btn {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-      margin-top: 20px;
-    }
-    
-    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(107, 95, 179, 0.4); }
-    .start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    /* SUMMARY SCREEN */
-    .context-badge {
-      display: inline-block;
-      background: var(--accent-blue);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      margin-bottom: 20px;
-      font-weight: 500;
-    }
-    
-    .summary-content {
-      background: #fafbfc;
-      color: var(--text-dark);
-      padding: 24px;
-      border-radius: 8px;
-      line-height: 1.7;
-      margin-bottom: 20px;
-      white-space: pre-wrap;
-      font-size: 13px;
-      font-family: 'Segoe UI', Roboto, sans-serif;
-      border: 1px solid var(--border-light);
-      overflow-x: auto;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    
-    .buttons-row {
       display: flex;
-      gap: 10px;
-      margin-top: 20px;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
     }
-    
-    .btn-secondary {
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: var(--bg-white);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      height: 90vh;
+      max-height: 700px;
+    }
+
+    .header {
+      background: var(--text-dark);
+      color: white;
+      padding: 20px;
+      border-radius: 16px 16px 0 0;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .chat-area {
       flex: 1;
-      padding: 12px;
-      background: var(--border-light);
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.bot {
+      justify-content: flex-start;
+    }
+
+    .message.user {
+      justify-content: flex-end;
+    }
+
+    .message-content {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .message.bot .message-content {
+      background: var(--bg-gray);
       color: var(--text-dark);
-      border: none;
+      border-left: 3px solid var(--accent-purple);
+    }
+
+    .message.user .message-content {
+      background: var(--accent-purple);
+      color: white;
+    }
+
+    .input-area {
+      padding: 16px;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .options-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .option-btn {
+      padding: 10px 14px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-white);
       border-radius: 8px;
       cursor: pointer;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dark);
       transition: all 0.2s;
     }
-    
-    .btn-secondary:hover { background: #dee2e6; }
-    
-    .btn-primary {
-      flex: 1;
-      padding: 12px;
+
+    .option-btn:hover {
+      border-color: var(--accent-purple);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .option-btn.selected {
+      background: var(--accent-purple);
+      color: white;
+      border-color: var(--accent-purple);
+    }
+
+    .period-select {
+      padding: 10px 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text-dark);
+      background: var(--bg-white);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .period-select:hover {
+      border-color: var(--accent-purple);
+    }
+
+    .period-select:focus {
+      outline: none;
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    .confirm-btn {
+      padding: 12px 16px;
       background: var(--accent-purple);
       color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      font-size: 14px;
       font-weight: 600;
       transition: all 0.2s;
     }
-    
-    .btn-primary:hover { background: #5a4f99; }
-    
+
+    .confirm-btn:hover:not(:disabled) {
+      background: #5558e3;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .confirm-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .loading {
-      text-align: center;
-      padding: 40px;
-      font-size: 14px;
-      color: var(--text-light);
+      display: flex;
+      gap: 4px;
+      align-items: center;
     }
-    
+
     .loading-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: var(--accent-blue);
+      width: 6px;
+      height: 6px;
+      background: var(--accent-purple);
       border-radius: 50%;
-      animation: loading 1.4s infinite;
-      margin: 0 4px;
+      animation: bounce 1.4s infinite;
     }
-    
-    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
-    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
-    
-    @keyframes loading {
-      0%, 80%, 100% { opacity: 0.3; }
-      40% { opacity: 1; }
+
+    .loading-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .loading-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+      0%, 80%, 100% {
+        opacity: 0.3;
+        transform: translateY(0);
+      }
+      40% {
+        opacity: 1;
+        transform: translateY(-8px);
+      }
+    }
+
+    .disconnect-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 12px;
+      background: var(--bg-gray);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-light);
+      transition: all 0.2s;
+    }
+
+    .disconnect-btn:hover {
+      background: #f0f0f0;
+      color: var(--text-dark);
+    }
+
+    .api-key-screen {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .api-key-screen h2 {
+      font-size: 18px;
+      color: var(--text-dark);
+    }
+
+    .api-key-screen p {
+      color: var(--text-light);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .api-key-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+
+    .api-key-input:focus {
+      outline: none;
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+
+    .submit-btn {
+      padding: 12px 20px;
+      background: var(--accent-purple);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .submit-btn:hover {
+      background: #5558e3;
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
+      <button class="disconnect-btn" id="disconnectBtn" style="display: none;">Sair</button>
       <h1>Oráculo de Dados</h1>
       <p>Cheil BI - Análise de Performance</p>
-      <button id="disconnectBtn" class="disconnect-btn" style="display:none;">Desconectar</button>
     </div>
-    
-    <div class="content">
-      <!-- FILTROS -->
-      <div id="filterScreen">
-        <div class="filter-section">
-          <label>Qual é a subsidiária?</label>
-          <div id="subsidariesContainer" class="filter-options">
-            <button class="filter-btn" data-sub="LAO">LAO</button>
-          </div>
-        </div>
-        
-        <div class="filter-section">
-          <label>Qual período?</label>
-          <div class="filter-options">
-            <button class="filter-btn" data-period="current_week">Semana Atual</button>
-            <button class="filter-btn" data-period="last_week">Semana Passada</button>
-            <button class="filter-btn" data-period="current_month">Mês Corrente</button>
-            <button class="filter-btn" data-period="last_month">Mês Passado</button>
-            <button class="filter-btn" data-period="all_time">Todo Período</button>
-          </div>
-        </div>
-        
-        <button id="startBtn" class="start-btn" disabled>Gerar Resumo</button>
+
+    <!-- Tela de API Key -->
+    <div id="apiKeyScreen" class="chat-area" style="justify-content: center; padding: 40px 20px;">
+      <div class="api-key-screen">
+        <h2>Bem-vindo ao Oráculo</h2>
+        <p>Para começar, você precisa fornecer sua API Key do Claude</p>
+        <input type="password" id="apiKeyInput" class="api-key-input" placeholder="sk-ant-...">
+        <button class="submit-btn" id="submitApiKeyBtn">Conectar</button>
       </div>
-      
-      <!-- RESUMO -->
-      <div id="summaryScreen">
-        <div id="contextBadge" class="context-badge"></div>
-        
-        <div id="loadingIndicator" class="loading" style="display:none;">
-          <div>Carregando análise<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>
-        </div>
-        
-        <div id="summaryContent" class="summary-content"></div>
-        
-        <div class="buttons-row">
-          <button class="btn-secondary" onclick="backToFilters()">Alterar Filtros</button>
-          <button class="btn-primary" onclick="showChat()">Fazer Perguntas</button>
-        </div>
-      </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="chatScreen" style="display: none; flex: 1; display: flex; flex-direction: column;">
+      <div id="chatArea" class="chat-area"></div>
+      <div class="input-area" id="inputArea"></div>
     </div>
   </div>
 
   <script>
     const API_URL = window.location.origin;
-    const API_KEY_STORAGE = 'oracle_api_key';
+    const API_KEY_STORAGE = 'cheil_oracle_api_key';
     
+    let apiKey = null;
+    let conversationState = 'awaiting_subsidiary'; // awaiting_subsidiary, awaiting_period, ready
     let selectedSubsidiaries = [];
     let selectedPeriod = null;
-    let apiKey = null;
-    
-    const filterScreen = document.getElementById('filterScreen');
-    const summaryScreen = document.getElementById('summaryScreen');
-    const startBtn = document.getElementById('startBtn');
+    let subsidiariesList = [];
+
+    const apiKeyScreen = document.getElementById('apiKeyScreen');
+    const chatScreen = document.getElementById('chatScreen');
+    const chatArea = document.getElementById('chatArea');
+    const inputArea = document.getElementById('inputArea');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const submitApiKeyBtn = document.getElementById('submitApiKeyBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
-    const contextBadge = document.getElementById('contextBadge');
-    const summaryContent = document.getElementById('summaryContent');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    
-    // Carregar subsidiárias
+
+    // Inicializar
+    const storedApiKey = localStorage.getItem(API_KEY_STORAGE);
+    if (storedApiKey) {
+      apiKey = storedApiKey;
+      showChatScreen();
+    }
+
+    submitApiKeyBtn.addEventListener('click', () => {
+      const key = apiKeyInput.value.trim();
+      if (!key) {
+        alert('Digite sua API Key!');
+        return;
+      }
+      apiKey = key;
+      localStorage.setItem(API_KEY_STORAGE, key);
+      showChatScreen();
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      localStorage.removeItem(API_KEY_STORAGE);
+      location.reload();
+    });
+
+    async function showChatScreen() {
+      apiKeyScreen.style.display = 'none';
+      chatScreen.style.display = 'flex';
+      disconnectBtn.style.display = 'block';
+
+      // Carregar subsidiárias
+      await loadSubsidiaries();
+
+      // Primeira mensagem
+      addBotMessage('Olá! Qual é a sua subsidiária?');
+      showSubsidiaryOptions();
+    }
+
     async function loadSubsidiaries() {
       try {
         const response = await fetch(`${API_URL}/api/subsidiaries`);
         const data = await response.json();
         
-        if (data.success && data.subsidiaries && data.subsidiaries.length > 0) {
-          const container = document.getElementById('subsidariesContainer');
-          container.innerHTML = '<button class="filter-btn" data-sub="LAO">LAO</button>';
+        if (data.success && data.subsidiaries) {
+          // Agrupar SELA*
+          let subs = data.subsidiaries;
+          const selaGroup = subs.filter(s => s.startsWith('SELA'));
+          const others = subs.filter(s => !s.startsWith('SELA'));
           
-          data.subsidiaries.forEach(sub => {
-            const btn = document.createElement('button');
-            btn.className = 'filter-btn';
-            btn.dataset.sub = sub;
-            btn.textContent = sub;
-            container.appendChild(btn);
-          });
-          
-          attachSubsidiaryListeners();
-          attachPeriodListeners();
+          subsidiariesList = ['LAO', ...others, ...(selaGroup.length > 0 ? ['SELA'] : [])];
         }
       } catch (error) {
         console.error('Error loading subsidiaries:', error);
       }
     }
-    
-    function attachSubsidiaryListeners() {
-      document.querySelectorAll('[data-sub]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const sub = btn.dataset.sub;
-          
-          if (sub === 'LAO') {
-            // LAO desseleciona todas as outras
-            selectedSubsidiaries = ['LAO'];
-            document.querySelectorAll('[data-sub]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-          } else {
-            // Remove LAO se tiver selecionado
-            selectedSubsidiaries = selectedSubsidiaries.filter(s => s !== 'LAO');
-            document.querySelectorAll('[data-sub="LAO"]').forEach(b => b.classList.remove('active'));
-            
-            // Multi-select: Ctrl/Cmd + Click
-            if (e.ctrlKey || e.metaKey) {
-              if (selectedSubsidiaries.includes(sub)) {
-                selectedSubsidiaries = selectedSubsidiaries.filter(s => s !== sub);
-                btn.classList.remove('active');
-              } else {
-                selectedSubsidiaries.push(sub);
-                btn.classList.add('active');
-              }
-            } else {
-              // Click normal: seleciona apenas essa
-              selectedSubsidiaries = [sub];
-              document.querySelectorAll('[data-sub]').forEach(b => {
-                if (b !== btn) b.classList.remove('active');
-              });
-              btn.classList.add('active');
-            }
-          }
-          
-          updateStartBtn();
-        });
-      });
-    }
-    
-    function attachPeriodListeners() {
-      document.querySelectorAll('[data-period]').forEach(btn => {
+
+    function showSubsidiaryOptions() {
+      inputArea.innerHTML = '';
+      const container = document.createElement('div');
+      container.className = 'options-container';
+
+      subsidiariesList.forEach(sub => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = sub;
         btn.addEventListener('click', () => {
-          document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          selectedPeriod = btn.dataset.period;
-          updateStartBtn();
+          selectSubsidiary(sub);
         });
+        container.appendChild(btn);
       });
+
+      inputArea.appendChild(container);
     }
-    
-    function updateStartBtn() {
-      startBtn.disabled = !selectedSubsidiaries.length || !selectedPeriod;
+
+    function selectSubsidiary(sub) {
+      selectedSubsidiaries = [sub];
+      addUserMessage(sub);
+      conversationState = 'awaiting_period';
+      
+      setTimeout(() => {
+        addBotMessage('Qual período você deseja analisar?');
+        showPeriodOptions();
+      }, 500);
     }
-    
-    startBtn.addEventListener('click', async () => {
-      apiKey = localStorage.getItem(API_KEY_STORAGE);
-      if (!apiKey) {
-        apiKey = prompt('Insira sua API Key do Claude (sk-ant-...):');
-        if (!apiKey) return;
-        localStorage.setItem(API_KEY_STORAGE, apiKey);
-      }
+
+    function showPeriodOptions() {
+      inputArea.innerHTML = '';
       
-      filterScreen.style.display = 'none';
-      summaryScreen.style.display = 'block';
-      disconnectBtn.style.display = 'block';
-      updateContextBadge();
-      loadSummary();
-    });
-    
-    async function loadSummary() {
-      loadingIndicator.style.display = 'block';
-      summaryContent.innerHTML = '';
+      const select = document.createElement('select');
+      select.className = 'period-select';
       
-      try {
-        const response = await fetch(`${API_URL}/api/summary`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            apiKey,
-            context: { subsidiaries: selectedSubsidiaries, period: selectedPeriod }
-          })
-        });
-        
-        const data = await response.json();
-        
-        loadingIndicator.style.display = 'none';
-        
-        if (data.success) {
-          summaryContent.textContent = data.summary;
-        } else {
-          summaryContent.textContent = `Erro: ${data.error}`;
+      const options = [
+        { value: 'quarter_current', text: 'Quarter Atual' },
+        { value: 'quarter_last', text: 'Quarter Passado' },
+        { value: 'current_week', text: 'Semana Atual' },
+        { value: 'last_week', text: 'Semana Passada' },
+        { value: 'current_month', text: 'Mês Corrente' },
+        { value: 'last_month', text: 'Mês Passado' },
+        { value: 'all_time', text: 'Todo Período' }
+      ];
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Selecione um período...';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      select.appendChild(placeholder);
+
+      options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        select.appendChild(option);
+      });
+
+      select.addEventListener('change', () => {
+        if (select.value) {
+          selectPeriod(select.value, options.find(o => o.value === select.value).text);
         }
-      } catch (error) {
-        loadingIndicator.style.display = 'none';
-        summaryContent.textContent = `Erro: ${error.message}`;
-      }
+      });
+
+      inputArea.appendChild(select);
     }
-    
-    function updateContextBadge() {
-      let subLabel;
-      if (selectedSubsidiaries.includes('LAO')) {
-        subLabel = 'LAO (Todas)';
-      } else {
-        subLabel = selectedSubsidiaries.length > 1 
-          ? `${selectedSubsidiaries.length} subs` 
-          : selectedSubsidiaries[0];
-      }
+
+    function selectPeriod(value, text) {
+      selectedPeriod = value;
+      addUserMessage(text);
+      conversationState = 'ready';
+
+      setTimeout(() => {
+        addBotMessage(`Pronto! Subsidiária: ${selectedSubsidiaries[0]} | Período: ${text}`);
+        showReadyOptions();
+      }, 500);
+    }
+
+    function showReadyOptions() {
+      inputArea.innerHTML = '';
       
-      const periodLabels = {
-        current_week: 'Semana Atual',
-        last_week: 'Semana Passada',
-        current_month: 'Mês Corrente',
-        last_month: 'Mês Passado',
-        all_time: 'Todo Período'
-      };
-      contextBadge.textContent = `${subLabel} • ${periodLabels[selectedPeriod] || selectedPeriod}`;
+      const container = document.createElement('div');
+      container.className = 'options-container';
+
+      const resumoBtn = document.createElement('button');
+      resumoBtn.className = 'option-btn';
+      resumoBtn.textContent = 'Gerar Resumo';
+      resumoBtn.addEventListener('click', () => {
+        addUserMessage('Gerar Resumo');
+        addBotMessage('Gerando resumo...');
+        // TODO: Implementar chamada ao /api/summary
+      });
+      container.appendChild(resumoBtn);
+
+      const alterarBtn = document.createElement('button');
+      alterarBtn.className = 'option-btn';
+      alterarBtn.textContent = 'Alterar Filtros';
+      alterarBtn.addEventListener('click', () => {
+        conversationState = 'awaiting_subsidiary';
+        selectedSubsidiaries = [];
+        selectedPeriod = null;
+        chatArea.innerHTML = '';
+        addBotMessage('Qual é a sua subsidiária?');
+        showSubsidiaryOptions();
+      });
+      container.appendChild(alterarBtn);
+
+      inputArea.appendChild(container);
     }
-    
-    function backToFilters() {
-      filterScreen.style.display = 'block';
-      summaryScreen.style.display = 'none';
-      disconnectBtn.style.display = 'none';
+
+    function addBotMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'message bot';
+      msg.innerHTML = `<div class="message-content">${text}</div>`;
+      chatArea.appendChild(msg);
+      chatArea.scrollTop = chatArea.scrollHeight;
     }
-    
-    function showChat() {
-      alert('Chat de perguntas - em desenvolvimento!');
+
+    function addUserMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'message user';
+      msg.innerHTML = `<div class="message-content">${text}</div>`;
+      chatArea.appendChild(msg);
+      chatArea.scrollTop = chatArea.scrollHeight;
     }
-    
-    disconnectBtn.addEventListener('click', () => {
-      localStorage.removeItem(API_KEY_STORAGE);
-      location.reload();
-    });
-    
-    loadSubsidiaries();
-    attachPeriodListeners();
   </script>
 </body>
 </html>
