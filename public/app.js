@@ -12,6 +12,7 @@ function updateControls() {
   $('question').disabled = !ready || Boolean(state.chatRequest);
   $('mic').disabled = !ready || Boolean(state.chatRequest) || !state.recognition;
   document.querySelectorAll('.suggestions button').forEach(b => { b.disabled = !ready || Boolean(state.chatRequest); });
+  document.querySelectorAll('.clarification-options button').forEach(b => { b.disabled = !ready || Boolean(state.chatRequest) || b.dataset.answered === 'true'; });
   document.querySelectorAll('.generate').forEach(b => { b.disabled = !ready || Boolean(state.summaryRequests[b.dataset.type]); });
 }
 async function api(path, body, signal) {
@@ -79,13 +80,20 @@ async function sendMessage(text) {
   const message = (typeof text === 'string' ? text : $('question').value).trim();
   if (!message || !state.aiReady || !state.setupReady || state.chatRequest || state.listening) return;
   const controller = new AbortController(), revision = state.revision;
+  document.querySelectorAll('.clarification-options button').forEach(b => { b.dataset.answered = 'true'; });
   state.chatRequest = controller; addMessage('user', message); $('question').value = ''; updateControls();
   const pending = addMessage('bot', ''); loading(pending.querySelector('.message-body'), 'Consultando os dados e preparando a resposta…');
   try {
     const data = await api('/api/chat', { message, history: state.history.slice(-8), context: context() }, controller.signal);
     if (revision !== state.revision || state.chatRequest !== controller) return;
     formatted(pending.querySelector('.message-body'), data.reply + (data.truncated ? '\n\nA resposta atingiu o limite de tamanho. Peça para detalhar um ponto específico.' : ''));
-    state.history.push({ role: 'user', content: message }, { role: 'assistant', content: data.reply.slice(0, 12000) });
+    if (data.clarification?.options) {
+      const choices = document.createElement('div'); choices.className = 'clarification-options';
+      for (const option of data.clarification.options) { const button = document.createElement('button'); button.type = 'button'; button.textContent = option; button.addEventListener('click', () => sendMessage(option)); choices.append(button); }
+      pending.querySelector('.message-body').append(choices);
+    }
+    const rememberedReply = data.reply + (data.clarification ? '\nOpções: ' + data.clarification.options.map((v, i) => `${i + 1}. ${v}`).join('; ') : '');
+    state.history.push({ role: 'user', content: message }, { role: 'assistant', content: rememberedReply.slice(0, 12000) });
     state.history = state.history.slice(-8);
   } catch (error) {
     if (error.name !== 'AbortError' && revision === state.revision && state.chatRequest === controller) {

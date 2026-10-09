@@ -9,6 +9,7 @@
   <script src="/report-demo.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/prototypes.js" defer></script>
+  <script src="/slide-upload.js" defer></script>
 </head>
 <body>
   <div class="dashboard">
@@ -69,6 +70,15 @@
             <article class="template-card" data-template="quarterly"><div class="template-cover quarter-cover"><span class="cover-brand">SAMSUNG</span><span class="cover-period">Q2 / 2026</span><strong>Report<br>Trimestral</strong><span class="cover-bottom">SEDA <span>Cheil</span></span></div><div class="template-body"><span class="eyebrow">MODELO DE QUARTER</span><h3>SEDA · Q2 2026</h3><p>36 slides · PowerPoint · 22,3 MB</p><label class="template-choice"><input type="radio" name="slideTemplate" value="quarterly"> Usar modelo trimestral</label></div></article>
           </div>
           <div class="download-bar"><p><strong id="chosenTemplateLabel">Modelo mensal selecionado</strong><span>Download do arquivo original, sem atualização automática dos números.</span></p><a class="primary-button download-link" id="downloadTemplate" href="/api/templates/monthly" download>Baixar PowerPoint ↓</a></div>
+          <section class="slide-workshop" aria-labelledby="uploadTitle">
+            <div class="workshop-heading"><div><span class="eyebrow">SEU MODELO</span><h3 id="uploadTitle">Preencher com IA</h3><p>Envie uma imagem ou um PowerPoint. O Claude identifica os indicadores e preenche uma cópia com números de exemplo.</p></div><span class="prototype-badge">Dados demonstrativos</span></div>
+            <form id="slideUploadForm" class="slide-upload-form">
+              <label class="upload-file"><span>Escolher modelo</span><input id="slideFile" name="template" type="file" accept=".pptx,.png,.jpg,.jpeg,.webp" required><small>PNG, JPG, WebP ou PPTX · até 30 MB · PowerPoints com até 60 slides</small></label>
+              <div class="upload-action"><p id="uploadScope" class="scope-note"></p><button id="analyzeSlide" class="primary-button" type="submit" disabled>Analisar e preencher ↗</button></div>
+            </form>
+            <p id="slideUploadStatus" class="upload-status" role="status" aria-live="polite">Escolha um arquivo para começar.</p>
+            <div id="slideUploadResult" class="slide-upload-result" hidden></div>
+          </section>
         </div>
         <div id="reportBuilder" hidden><div class="wizard-top"><ol class="wizard-steps" aria-label="Etapas do relatório"><li id="stepDimensions" class="current">1. Dimensões</li><li id="stepMetrics">2. Métricas</li><li id="stepReview">3. Prévia</li></ol><button id="restartReport" class="plain-button" type="button">Recomeçar</button></div><div class="report-chat" id="reportChat" role="log" aria-live="polite"></div><div class="report-answer" id="reportAnswer"></div></div>
       </section>

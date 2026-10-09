@@ -80,7 +80,7 @@ const dataService = { subsidiaries: async () => ['BR', 'SELA_A'] };
 const aiService = { chat: async () => ({ reply: '<img src=x onerror=alert(1)>', truncated: false }), summary: async (context, type) => ({ summary: type, data: fakeData }) };
 test('HTTP public endpoints use server AI without client API key', async t => {
   const url = await serve(t, createApp({ env: {}, dataService, aiService }));
-  const config = await fetch(url + '/api/config').then(r => r.json()); assert.deepEqual(config, { success: true, aiConfigured: true });
+  const config = await fetch(url + '/api/config').then(r => r.json()); assert.deepEqual(config, { success: true, aiConfigured: true, slidesConfigured: false });
   const result = await fetch(url + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Oi', context }) });
   assert.equal(result.status, 200); assert.match((await result.json()).reply, /img/);
   const response = await fetch(url); assert.equal(response.status, 200); assert.match(response.headers.get('content-security-policy'), /script-src 'self'/);

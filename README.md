@@ -1,6 +1,15 @@
 # Oráculo de Dados — Cheil BI
 
-## Atualização 1.2.1: moeda automática, relatório preenchido e consultas corrigidas
+## Atualização 1.3: esclarecimentos no chat e preenchimento de modelos de slides
+
+- **Chat:** Claude pode perguntar qual objetivo o usuário quer explorar quando a solicitação está ambígua. Oferece 2 ou 3 opções clicáveis e usa o histórico para continuar depois da escolha. Perguntas objetivas seguem diretamente para a análise; os resumos automáticos não entram nesse fluxo.
+- **Modelo próprio de slides:** upload de PNG, JPG, WebP ou PPTX em Slides / Relatórios → Slides → Preencher com IA. Claude analisa a imagem via visão ou os campos e textos do PPTX. O servidor preenche indicadores reconhecidos com valores demonstrativos e disponibiliza uma cópia PPTX.
+- **PPTX:** preserva os slides, masters, imagens e estilos. Substitui os parágrafos numéricos/placeholder identificados, mesmo quando o valor é dividido em trechos com formatação diferente. Datas, nomes de produtos e números no texto narrativo não são substituídos. Gráficos, planilhas incorporadas e valores em imagens permanecem como no original. Cada slide recebe uma identificação de números fictícios.
+- **Imagem:** usa a imagem como fundo de um slide e coloca os valores detectados em caixas de texto editáveis nas posições identificadas pela IA. A prévia mostra essas posições, e a tabela lista os indicadores preenchidos. A qualidade da localização depende da imagem e da resposta do modelo.
+- **Limites do MVP:** arquivo até 30 MB, imagem até 25 megapixels, PPTX com até 60 slides/80 MB descompactados. O preenchimento cobre até 100 campos de texto ou 20 áreas em uma imagem. PowerPoints binários antigos `.ppt` devem ser salvos como `.pptx`. Um modelo é processado por vez para respeitar a memória do Render.
+- **Chave e downloads:** usa a mesma ANTHROPIC_API_KEY e CLAUDE_MODEL do chat. As gerações compartilham o orçamento de uso configurado. Os downloads dos modelos originais continuam disponíveis. Arquivos gerados ficam temporariamente no disco da instância, com token aleatório, até 15 minutos ou até a limpeza das últimas 3 gerações; reinícios removem esses arquivos. Esta versão presume uma instância Render.
+
+## Moeda automática, relatório preenchido e consultas corrigidas
 
 - **Slides / Relatórios:** escolha o modelo mensal (Agosto/2026) ou trimestral (Q2/2026) e baixe os PPTX originais. Os filtros não reescrevem o conteúdo desses arquivos.
 - **Relatório:** assistente em formato de conversa para escolher dimensões de `dAllDimensions`, depois métricas e conferir uma tabela preenchida com dados explicitamente demonstrativos. As linhas são agrupadas pelas dimensões escolhidas, as taxas são recalculadas dos totais e o CSV inclui os mesmos valores da prévia. A leitura de schema é dinâmica; se falhar, a lista de dimensões é identificada como exemplo.
@@ -68,7 +77,7 @@ Há limites configuráveis, sem introduzir login:
 
 | Variável | Padrão | Aplicação |
 | --- | --- | --- |
-| `AI_REQUESTS_PER_15_MIN` | `30` | Perguntas/resumos por IP a cada 15 minutos |
+| `AI_REQUESTS_PER_15_MIN` | `30` | Perguntas, resumos e preenchimentos de slides por IP a cada 15 minutos |
 | `AI_REQUESTS_PER_DAY` | `300` | Total diário UTC por instância, incluindo tentativas |
 | `AI_MAX_CONCURRENT` | `6` | Requisições de IA simultâneas por instância |
 | `BQ_MAXIMUM_BYTES_BILLED` | `10000000000` | Até 10 GB faturáveis por consulta, não por conversa |

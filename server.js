@@ -4,11 +4,14 @@ const express = require('express');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const { BigQuery } = require('@google-cloud/bigquery');
 const path = require('path');
+const multer = require('multer');
 const { randomUUID } = require('crypto');
 const { describeError, safeLogMessage } = require('./lib/errors');
 const { createDataService, validateContext } = require('./lib/data');
 const { createAIService } = require('./lib/ai');
 const metricContract = require('./lib/metrics');
+const { createSlideService, validateUpload, MAX_UPLOAD } = require('./lib/slides');
+const { createDownloadStore } = require('./lib/slide-downloads');
 
 function integerEnv(env, key, fallback) {
   const value = Number(env[key] || fallback);
@@ -22,7 +25,7 @@ function validateConversation(body) {
   if (!Array.isArray(history) || history.length > 20 || history.some((m, i) => !m || m.role !== (i % 2 === 0 ? 'user' : 'assistant') || typeof m.content !== 'string' || !m.content.trim() || m.content.length > 12000) || history.length % 2 || JSON.stringify(history).length > 90000) throw Object.assign(new Error('Histórico de conversa inválido.'), { status: 400 });
   return { message: message.trim(), history: history.map(({ role, content }) => ({ role, content })) };
 }
-function createApp({ env = process.env, dataService, aiService } = {}) {
+function createApp({ env = process.env, dataService, aiService, slideService } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', Number(env.TRUST_PROXY_HOPS || (env.RENDER ? 1 : 0)));
@@ -30,7 +33,7 @@ function createApp({ env = process.env, dataService, aiService } = {}) {
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'");
     next();
   });
   if (!dataService) {
@@ -38,8 +41,12 @@ function createApp({ env = process.env, dataService, aiService } = {}) {
     const credentials = env.GCP_SERVICE_ACCOUNT_JSON ? JSON.parse(env.GCP_SERVICE_ACCOUNT_JSON) : undefined;
     dataService = createDataService(new BigQuery({ projectId: config.projectId, ...(credentials ? { credentials } : {}) }), config);
   }
-  if (!aiService && env.ANTHROPIC_API_KEY) aiService = createAIService(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 60000, maxRetries: 1 }), dataService, env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001');
-  app.get('/api/config', (req, res) => res.json({ success: true, aiConfigured: Boolean(aiService) }));
+  if (env.ANTHROPIC_API_KEY && (!aiService || !slideService)) {
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 60000, maxRetries: 1 }), model = env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+    if (!aiService) aiService = createAIService(client, dataService, model);
+    if (!slideService) slideService = createSlideService(client, model);
+  }
+  app.get('/api/config', (req, res) => res.json({ success: true, aiConfigured: Boolean(aiService), slidesConfigured: Boolean(slideService) }));
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
   app.get('/api/metric-contract', (req, res) => res.json({ success: true, version: metricContract.version, metrics: metricContract.metrics, quality: metricContract.metricQuality() }));
   app.get('/api/report-catalog', async (req, res) => {
@@ -68,7 +75,7 @@ function createApp({ env = process.env, dataService, aiService } = {}) {
   const maxConcurrent = integerEnv(env, 'AI_MAX_CONCURRENT', 6);
   let dailyDate = '', dailyCount = 0, active = 0;
   function allowAI(req, res, next) {
-    if (!aiService) return res.status(503).json({ error: 'Configure ANTHROPIC_API_KEY no servidor para ativar o assistente.' });
+    if (!(req.path === '/api/slides/fill' ? slideService : aiService)) return res.status(503).json({ error: 'Configure ANTHROPIC_API_KEY no servidor para ativar o assistente.' });
     if (req.headers.origin && req.headers.origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: 'Origem da solicitação não permitida.' });
     const now = Date.now(), day = new Date().toISOString().slice(0, 10);
     if (dailyDate !== day) { dailyDate = day; dailyCount = 0; }
@@ -101,6 +108,34 @@ function createApp({ env = process.env, dataService, aiService } = {}) {
     } catch (error) { next(error); }
   }, allowAI, async (req, res, next) => {
     try { res.json({ success: true, type: res.locals.summaryType, ...await aiService.summary(res.locals.context, res.locals.summaryType) }); } catch (error) { next(error); } finally { res.locals.releaseAI(); }
+  });
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD, files: 1, fields: 1, fieldSize: 2000, parts: 2 } });
+  const slideDownloads = createDownloadStore(); app.locals.slideDownloads = slideDownloads;
+  let slideBusy = false;
+  app.post('/api/slides/fill', (req, res, next) => {
+    if (req.headers.origin && req.headers.origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: 'Origem da solicitação não permitida.' });
+    if (!slideService) return res.status(503).json({ error: 'Configure ANTHROPIC_API_KEY no servidor para analisar o modelo.' });
+    if (slideBusy) return res.status(429).json({ error: 'Há um modelo sendo processado. Aguarde e tente novamente.' });
+    slideBusy = true; let released = false;
+    res.locals.releaseSlide = () => { if (!released) { released = true; slideBusy = false; } };
+    res.on('finish', () => { if (!res.locals.slideRunning) res.locals.releaseSlide(); });
+    req.on('aborted', () => { if (!res.locals.slideRunning) res.locals.releaseSlide(); });
+    res.on('close', () => { if (!res.locals.slideRunning) res.locals.releaseSlide(); });
+    next();
+  }, upload.single('template'), (req, res, next) => {
+    try { validateUpload(req.file); res.locals.context = validateContext(req.body.context ? JSON.parse(req.body.context) : {}); next(); }
+    catch (error) { if (error instanceof SyntaxError) error = Object.assign(new Error('Contexto do modelo inválido.'), { status: 400 }); next(error); }
+  }, allowAI, async (req, res, next) => {
+    res.locals.slideRunning = true;
+    try {
+      const { buffer, ...result } = await slideService.fill(req.file, res.locals.context);
+      if (!req.aborted && !res.destroyed) res.json({ success: true, ...result, context: res.locals.context, ...await slideDownloads.put(buffer, result.filename) });
+    } catch (error) { next(error); }
+    finally { res.locals.slideRunning = false; res.locals.releaseSlide(); res.locals.releaseAI(); }
+  });
+  app.get('/api/slides/download/:token', async (req, res, next) => {
+    try { const entry = await slideDownloads.get(req.params.token); if (!entry) return res.status(404).json({ error: 'O download expirou. Gere o modelo novamente.' }); res.setHeader('Cache-Control', 'private, no-store'); res.download(entry.path, entry.filename, error => { if (error) next(error); }); }
+    catch (error) { next(error); }
   });
   app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0 }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
