@@ -6,6 +6,7 @@
   <title>Oráculo de Dados - Cheil BI</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/metric-contract.js" defer></script>
+  <script src="/report-demo.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/prototypes.js" defer></script>
 </head>
@@ -32,15 +33,13 @@
         <option value="current_week">Semana Atual</option><option value="last_week">Semana Passada</option>
         <option value="current_month" selected>Mês Corrente</option><option value="last_month">Mês Passado</option><option value="all_time">Todo Período</option>
       </select></label>
-      <label class="filter-box currency-filter"><span>MOEDA</span><select id="currency" aria-label="Moeda"><option value="standard">Moeda padrão</option><option value="BRL" disabled>BRL · SEDA</option></select></label>
-      <div class="filter-context"><span class="context-dot"></span><span id="contextLabel">LAO · Mês Corrente</span></div>
+      <div class="filter-context"><span class="context-dot"></span><span id="contextLabel">LAO · Mês Corrente · USD</span></div>
       <button class="plain-button" id="newChat" type="button">↻ Nova conversa</button>
     </div>
     <div id="notice" class="notice" role="status" hidden><span id="noticeText"></span><button id="retrySetup" type="button" hidden>Tentar novamente</button></div>
-    <div class="metric-status" id="metricStatus">Orders, CVR e AOV aguardam as definições complementares do modelo. Os demais indicadores usam as regras do documento DAX.</div>
     <main>
       <section id="chat" class="panel chat-panel" role="tabpanel" aria-labelledby="tab-chat">
-        <div class="panel-heading"><div><span class="eyebrow">ORÁCULO DE DADOS</span><h2>Chat</h2></div><span class="panel-context" id="chatContext">LAO · Mês Corrente</span></div>
+        <div class="panel-heading"><div><span class="eyebrow">ORÁCULO DE DADOS</span><h2>Chat</h2></div><span class="panel-context" id="chatContext">LAO · Mês Corrente · USD</span></div>
         <div id="chatArea" class="chat-area" role="log" aria-live="polite" aria-label="Conversa">
           <div class="welcome" id="welcome"><div class="welcome-symbol">✦</div><h3>O que os seus dados dizem?</h3><p>Explore resultados, entenda os indicadores e encontre oportunidades no período selecionado.</p><div class="suggestions">
             <button data-question="Como está a performance do período?">Como está a performance do período? <span>↗</span></button>
@@ -61,7 +60,7 @@
       </section>
       <section id="slides" class="panel materials-panel" role="tabpanel" aria-labelledby="tab-slides" hidden>
         <div class="panel-heading"><div><span class="eyebrow">MATERIAIS E ANÁLISES</span><h2>Slides / Relatórios</h2></div><span class="prototype-badge">Protótipo</span></div>
-        <p class="summary-description">Escolha um modelo de apresentação ou monte a estrutura do seu relatório.</p>
+        <p class="summary-description">Escolha um modelo de apresentação ou monte uma prévia do seu relatório.</p>
         <div class="material-switch" role="group" aria-label="Tipo de material"><button id="chooseSlides" class="selected" type="button" aria-pressed="true">Slides</button><button id="chooseReport" type="button" aria-pressed="false">Relatório</button></div>
         <div id="slideLibrary">
           <div class="library-intro"><h3>Qual modelo você quer baixar?</h3><p>Os arquivos são os exemplos originais enviados. Nesta versão, eles preservam o conteúdo e os períodos do modelo, independentemente dos filtros acima.</p></div>

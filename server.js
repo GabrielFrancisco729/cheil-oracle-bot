@@ -4,6 +4,8 @@ const express = require('express');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const { BigQuery } = require('@google-cloud/bigquery');
 const path = require('path');
+const { randomUUID } = require('crypto');
+const { describeError, safeLogMessage } = require('./lib/errors');
 const { createDataService, validateContext } = require('./lib/data');
 const { createAIService } = require('./lib/ai');
 const metricContract = require('./lib/metrics');
@@ -104,10 +106,9 @@ function createApp({ env = process.env, dataService, aiService } = {}) {
   app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
-    const inputError = error.type === 'entity.parse.failed' || error.type === 'entity.too.large';
-    const status = inputError ? (error.type === 'entity.too.large' ? 413 : 400) : error.status === 400 ? 400 : error.status === 429 ? 429 : 502;
-    console.error('[API error]', { route: req.path, status, name: error.name });
-    res.status(status).json({ error: inputError ? 'Solicitação inválida ou muito grande.' : status === 400 ? error.message : status === 429 ? 'O provedor atingiu um limite de uso. Aguarde e tente novamente.' : error.service === 'bigquery' ? 'Não foi possível consultar as subsidiárias. Verifique a conexão do BigQuery.' : 'Não foi possível concluir a análise. Verifique as credenciais e os logs do servidor.' });
+    const details = describeError(error), requestId = randomUUID();
+    console.error('[API error]', { requestId, route: req.path, status: details.status, errorCode: details.errorCode, service: error.service, operation: error.operation, name: error.name, message: safeLogMessage(error, env) });
+    res.status(details.status).json({ ...details, requestId });
   });
   return app;
 }

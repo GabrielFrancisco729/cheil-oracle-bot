@@ -3,8 +3,8 @@ const $ = id => document.getElementById(id);
 const state = { revision: 0, history: [], activeTab: 'chat', aiReady: false, setupReady: false, chatRequest: null, summaryRequests: {}, summaries: {}, recognition: null, listening: false, voiceGeneration: 0 };
 const labels = { executive: 'resumo-exec', managerial: 'resumo-ger' };
 try { localStorage.removeItem('cheil_oracle_api_key'); } catch (_) { /* Storage may be disabled. */ }
-function context() { return { subsidiaries: [$('subsidiary').value], period: $('period').value, currency: $('currency').value }; }
-function contextText() { return `${$('subsidiary').value} · ${$('period').selectedOptions[0].textContent} · ${$('currency').value === 'BRL' ? 'BRL · SEDA' : 'Moeda padrão'}`; }
+function context() { return { subsidiaries: [$('subsidiary').value], period: $('period').value }; }
+function contextText() { return `${$('subsidiary').value} · ${$('period').selectedOptions[0].textContent} · ${window.OracleMetrics.currencyFor(context().subsidiaries)}`; }
 function showNotice(message, retry = false) { $('noticeText').textContent = message; $('notice').hidden = !message; $('retrySetup').hidden = !retry; }
 function updateControls() {
   const ready = state.aiReady && state.setupReady;
@@ -18,7 +18,7 @@ async function api(path, body, signal) {
   const response = await fetch(path, { ...(body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}), signal });
   let data;
   try { data = await response.json(); } catch (_) { throw new Error('O servidor não retornou uma resposta válida. Tente novamente.'); }
-  if (!response.ok || !data.success) throw new Error(data.error || 'Não foi possível concluir a solicitação.');
+  if (!response.ok || !data.success) throw new Error((data.error || 'Não foi possível concluir a solicitação.') + (data.requestId ? ` Referência: ${data.requestId}.` : ''));
   return data;
 }
 // Build formatting with DOM nodes; never inject user or model HTML.
@@ -67,7 +67,6 @@ function resetChat() {
   $('question').value = ''; updateControls();
 }
 function invalidateContext() {
-  const seda = $('subsidiary').value === 'SEDA'; $('currency').options[1].disabled = !seda; if (!seda) $('currency').value = 'standard';
   state.revision++;
   resetChat();
   for (const controller of Object.values(state.summaryRequests)) controller.abort();
@@ -179,14 +178,15 @@ async function initialize() {
     const all = subsidiaries.value.subsidiaries;
     const options = ['LAO', ...all.filter(s => !/^SELA/i.test(s) && s !== 'LAO'), ...(all.some(s => /^SELA/i.test(s)) ? ['SELA'] : [])];
     $('subsidiary').replaceChildren(...[...new Set(options)].map(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; return option; }));
-    $('subsidiary').value = options.includes(previous) ? previous : 'LAO'; state.setupReady = true; $('currency').options[1].disabled = $('subsidiary').value !== 'SEDA';
+    $('subsidiary').value = options.includes(previous) ? previous : 'LAO'; state.setupReady = true;
+    $('contextLabel').textContent = contextText(); $('chatContext').textContent = contextText();
   } else errors.push('Não foi possível carregar as subsidiárias. Tente novamente.');
   showNotice(errors.join(' '), results.some(r => r.status === 'rejected')); updateControls(); maybeGenerate();
 }
 $('chatForm').addEventListener('submit', event => { event.preventDefault(); if (state.listening) { stopDictation(); return; } sendMessage(); });
 $('question').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (state.listening) stopDictation(); else sendMessage(); } });
 $('question').addEventListener('input', () => { $('question').style.height = 'auto'; $('question').style.height = Math.min($('question').scrollHeight, 120) + 'px'; });
-$('subsidiary').addEventListener('change', invalidateContext); $('period').addEventListener('change', invalidateContext); $('currency').addEventListener('change', invalidateContext);
+$('subsidiary').addEventListener('change', invalidateContext); $('period').addEventListener('change', invalidateContext);
 $('newChat').addEventListener('click', () => { resetChat(); switchTab('chat'); $('question').focus(); });
 $('retrySetup').addEventListener('click', initialize);
 document.querySelectorAll('.suggestions button').forEach(b => b.addEventListener('click', () => sendMessage(b.dataset.question)));

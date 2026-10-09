@@ -1,12 +1,14 @@
 # Oráculo de Dados — Cheil BI
 
-## Atualização 1.2: novas abas e contrato DAX
+## Atualização 1.2.1: moeda automática, relatório preenchido e consultas corrigidas
 
 - **Slides / Relatórios:** escolha o modelo mensal (Agosto/2026) ou trimestral (Q2/2026) e baixe os PPTX originais. Os filtros não reescrevem o conteúdo desses arquivos.
-- **Relatório:** assistente em formato de conversa para escolher dimensões de `dAllDimensions`, depois métricas e conferir a estrutura. A leitura de schema é dinâmica; se falhar, a lista é explicitamente identificada como exemplo. O CSV desta prototipação contém somente cabeçalhos, sem valores fictícios de negócio.
+- **Relatório:** assistente em formato de conversa para escolher dimensões de `dAllDimensions`, depois métricas e conferir uma tabela preenchida com dados explicitamente demonstrativos. As linhas são agrupadas pelas dimensões escolhidas, as taxas são recalculadas dos totais e o CSV inclui os mesmos valores da prévia. A leitura de schema é dinâmica; se falhar, a lista de dimensões é identificada como exemplo.
 - **Best x Worst:** exemplos por OR, CTOR e CVR, filtro de volume mínimo, criativos em tamanho completo, insights e ações para testar. Todas as métricas, assuntos e posições são explicitamente simulados. Não há inferência de relação entre os JPG enviados e campanhas reais.
 - **Métricas compartilhadas:** regras documentadas de Visits, Units, Revenue, OR, CTOR e CTR, incluindo os efeitos de `REMOVEFILTERS(dProducts)`. Orders, CVR e AOV reais estão pendentes de `tOrdersGA4` e do schema/relacionamentos de `auxOrderIDPerDate`; não são calculados por aproximação.
-- **Moeda:** padrão usa o campo `Revenue`; BRL em SEDA seleciona `Revenue_SEDA` nas parcelas determinadas pelo DOCX. GA4 e affiliate permanecem em `Revenue`.
+- **Moeda automática:** o recorte exclusivo SEDA usa `Revenue_SEDA` em reais em todas as parcelas da receita. As demais subsidiárias, LAO, SELA e recortes combinados usam `Revenue` em dólares. Não há seletor de moeda nem conversão de câmbio adicional. Esta regra foi confirmada pelo responsável do modelo e substitui a seleção parcial de moeda do DOCX.
+- **Consulta de resumos/chat:** não exige mais campos de pedidos que não eram usados no resultado. Se `CHANNEL` existir na fato, usa esse campo; caso contrário, utiliza `dAllDimensions.CHANNEL`, como na consulta original do app. O schema da fato é verificado e armazenado em cache. A desduplicação da dimensão lê apenas TrackingCode, SUB, CHANNEL e CAMPAIGN, reduzindo a leitura desnecessária.
+- **Diagnóstico de erros:** a interface diferencia falha no schema/acesso do BigQuery, autenticação/modelo/créditos Claude e limites de leitura. Cada falha tem uma referência para localizar o detalhe nos logs do Render; chaves conhecidas são removidas da mensagem registrada.
 
 Leia `METRIC_CONTRACT.md` para as regras completas e as dependências que faltam. O DOCX original acompanha o projeto em `reference/`. Nenhuma variável nova obrigatória é necessária no Render; as novas abas usam os arquivos estáticos e o schema obtido com a mesma conexão BigQuery.
 
@@ -82,7 +84,7 @@ Limites e cache são em memória: reinícios zeram os contadores, e réplicas t�
 - As definições vigentes estão em `METRIC_CONTRACT.md`, traduzidas do documento DAX. Taxas não são médias de taxas de linha. As três medidas de pedidos pendentes não recebem valores aproximados.
 - As dimensões são reduzidas a uma linha por TrackingCode/SKU antes do join para evitar multiplicar fatos. Valide as chaves e o desempate contra o modelo Power BI.
 
-- O arquivo original já utilizava as tabelas principais; a tradução DAX também requer CHANNEL, CHANNEL / TRIGGER e Revenue em fConsolidated. Sem acesso à base real, alterações de schema e a equivalência com medidas específicas do Power BI precisam ser verificadas no ambiente.
+- O arquivo original já utilizava as tabelas principais. `CHANNEL / TRIGGER` e `Total_orders` deixaram de ser exigidos pelas consultas, pois as medidas reais de pedidos estão pendentes. O canal é obtido da fato quando disponível, ou da dimensão. Sem acesso à base real, a equivalência deste mapeamento com o Power BI precisa ser conciliada no ambiente.
 - O resumo gerencial é uma proposta inicial de lógica: diagnóstico do funil, canais, destaques e ações priorizadas. Usa dados reais disponíveis. A nova aba Best x Worst é uma demonstração separada.
 
 ## Microfone

@@ -29,5 +29,6 @@ function calculate(c,ignoreProduct=c,orderComponents=null){
  ctr:divide(i.clicks,c.delivered),cvr:orderComponents?divide(ordersWithVisits,visits-i.visits_affiliate*.044,0):null,aov:divide(revenue,orders)};
 }
 function componentsForEmail(delivered,opens,clicks,visits,orders,revenue){return {delivered,opens,clicks,visits_all:visits,visits_affiliate:0,units_all:orders,units_affiliate:0,mail_delivered:delivered,mail_opens:opens,mail_clicks:clicks,revenue_aa:revenue,revenue_vtex:0,revenue_app:0,revenue_web_app:0,revenue_ga4:0,revenue_affiliate:0,orders_insider:0,orders_insider_with_visits:0,orders_crm:orders,orders_vtex:0,orders_affiliate:0,orders_vtex_cartapp:0};}
-return {version:'dax-docx-2026-10-09',metrics,byId,calculate,componentsForEmail};
+function currencyFor(subsidiaries){return Array.isArray(subsidiaries)&&subsidiaries.length===1&&subsidiaries[0].toUpperCase()==='SEDA'?'BRL':'USD';}
+return {version:'dax-docx-2026-10-09-currency-auto',metrics,byId,calculate,componentsForEmail,currencyFor};
 });

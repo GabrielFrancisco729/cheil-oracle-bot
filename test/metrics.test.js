@@ -24,11 +24,25 @@ test('product context repeats ignored metrics and keeps product-specific deliver
  const v=calculate(perProduct,fixture);assert.equal(v.opens,300);assert.equal(v.clicks,60);almost(v.visits,1004.4);assert.equal(v.open_rate,0);almost(v.click_rate,.2);almost(v.ctr,.6);
  const q=buildQuery({subsidiaries:['LAO']},{start:null},{groupBy:'product'});assert.match(q.query,/CROSS JOIN no_product_filter/);assert.match(q.query,/np.opens AS opens/);assert.match(q.query,/g.delivered AS delivered/);
 });
-test('revenue selects exact source/channel/currency branches and does not round',()=>{
- const standard=rawAggregates(false),local=rawAggregates(true);
+test('revenue selects one currency column in every source branch and does not round',()=>{
+ const standard=rawAggregates(false,'fc.CHANNEL'),local=rawAggregates(true);
  assert.match(standard,/fc.CHANNEL = 'WEB PUSH' AND fc.Source = 'APP'/);assert.match(standard,/SUBSTR\(fc.Source, 1, 9\) = 'GA4_SEASA'/);assert.ok(!standard.includes("LIKE 'GA4%'"));
- assert.match(local,/fc.Source = 'ANALYTICS', fc.`Revenue_SEDA`/);assert.match(local,/DATA_SOURCE = 'AFFILIATE', fc.`Revenue`/);assert.match(local,/GA4_SEASA', fc.`Revenue`/);assert.ok(!standard.includes('ROUND('));
- assert.throws(()=>validateContext({subsidiaries:['SELA'],currency:'BRL'}),/SEDA/);assert.equal(validateContext({subsidiaries:['SEDA'],currency:'BRL'}).currency,'BRL');
+ assert.match(local,/fc.Source = 'ANALYTICS', fc.`Revenue_SEDA`/);assert.match(local,/DATA_SOURCE = 'AFFILIATE', fc.`Revenue_SEDA`/);assert.match(local,/GA4_SEASA', fc.`Revenue_SEDA`/);assert.ok(!standard.includes('ROUND('));
+ assert.equal(validateContext({subsidiaries:['SELA'],currency:'BRL'}).currency,'USD');assert.equal(validateContext({subsidiaries:['SEDA'],currency:'standard'}).currency,'BRL');
+ assert.ok(!standard.includes('CHANNEL / TRIGGER'));assert.ok(!standard.includes('Total_orders'));
+});
+test('automatic subsidiary currency cannot be overridden by old clients',()=>{
+ const seda=buildQuery({subsidiaries:['SEDA'],currency:'USD'},{start:null});assert.match(seda.query,/fc.`Revenue_SEDA`/);assert.ok(!seda.query.includes('fc.`Revenue`'));
+ for(const subsidiaries of [['LAO'],['SELA'],['SEM'],['SEDA','SEM']]){const q=buildQuery({subsidiaries,currency:'BRL'},{start:null});assert.match(q.query,/fc.`Revenue`/);assert.ok(!q.query.includes('Revenue_SEDA'));}
+});
+test('missing fact CHANNEL and unused order fields do not prevent summaries',async()=>{
+ let reads=0;const queries=[];
+ const service=createDataService({dataset:()=>({table:()=>({getMetadata:async()=>{reads++;return[{schema:{fields:[{name:'Revenue',type:'FLOAT'},{name:'CHANNEL / TRIGGER',type:'STRING'}]}}];}})}),query:async q=>{queries.push(q);assert.ok(!q.query.includes('fc.CHANNEL'));assert.ok(!q.query.includes('CHANNEL / TRIGGER'));return [[{row_count:4,revenue:100}]];}});
+ const snapshot=await service.snapshot({subsidiaries:['SEDA']});assert.equal(snapshot.hasData,true);assert.equal(snapshot.quality.channel.source,'dAllDimensions.CHANNEL');assert.equal(reads,1);assert.equal(queries.length,5);
+});
+test('available fact CHANNEL is preserved instead of replacing the DAX source',async()=>{
+ const service=createDataService({dataset:()=>({table:()=>({getMetadata:async()=>[{schema:{fields:[{name:'channel',type:'STRING'}]}}]})}),query:async q=>{assert.match(q.query,/fc.CHANNEL IN/);return [[{row_count:1}]];}});
+ const snapshot=await service.snapshot({subsidiaries:['LAO']});assert.equal(snapshot.quality.channel.source,'fConsolidated.CHANNEL');
 });
 test('dimensions come from live dAllDimensions schema, excluding repeated and record fields',async()=>{
  let metadataCalls=0;const bq={dataset: name=>{assert.equal(name,'apollo_gold');return{table:name=>{assert.equal(name,'dAllDimensions');return{getMetadata:async()=>{metadataCalls++;return[{schema:{fields:[{name:'SUB',type:'STRING'},{name:'TRIGGER CATEGORY',type:'STRING'},{name:'CHANNEL / TRIGGER',type:'STRING'},{name:'REPEATED',type:'STRING',mode:'REPEATED'},{name:'NESTED',type:'RECORD'}]}}];}};}};}};

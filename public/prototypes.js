@@ -26,7 +26,7 @@ function selectionControls(items,selected,name,metric=false){
   const label=node('label',null,'choice-item');label.dataset.search=item.label.toLowerCase();
   const input=document.createElement('input');input.type='checkbox';input.name=name;input.value=item.id;input.checked=selected.includes(item.id);
   input.addEventListener('change',()=>{const values=name==='dimension'?report.dimensions:report.metrics;if(input.checked&&!values.includes(item.id))values.push(item.id);else if(!input.checked){const index=values.indexOf(item.id);if(index>=0)values.splice(index,1);}updateSelection();});
-  const copy=node('span');copy.append(node('strong',item.label));if(metric){copy.append(node('small',item.formula));if(item.status==='pending')copy.append(node('span','Definição pendente','pending-tag'));}else copy.append(node('small',item.type));
+  const copy=node('span');copy.append(node('strong',item.label));if(metric)copy.append(node('small',item.formula));else copy.append(node('small',item.type));
   label.append(input,copy);grid.append(label);
  });return grid;
 }
@@ -38,32 +38,39 @@ function renderDimensions(){
  const grid=selectionControls(report.catalog.dimensions,report.dimensions,'dimension');target.append(grid);
  search.addEventListener('input',()=>grid.querySelectorAll('.choice-item').forEach(e=>{e.hidden=!e.dataset.search.includes(search.value.toLowerCase());}));
  const actions=node('div',null,'wizard-actions'),count=node('p');count.id='selectionCount';const next=node('button','Continuar: métricas →','primary-button');next.id='wizardNext';next.type='button';
- next.addEventListener('click',()=>{if(!report.dimensions.length)return;wizardMessage('user',report.dimensions.join(', '));wizardMessage('bot','Quais métricas você quer incluir? As definições abaixo seguem o documento DAX. As métricas pendentes podem entrar na estrutura, mas ainda não terão valores.');steps('metrics');renderMetrics();});
+ next.addEventListener('click',()=>{if(!report.dimensions.length)return;wizardMessage('user',report.dimensions.join(', '));wizardMessage('bot','Quais métricas você quer incluir? Vou preencher a prévia com dados de exemplo para você avaliar o relatório.');steps('metrics');renderMetrics();});
  actions.append(count,next);target.append(actions);updateSelection();
 }
 function renderMetrics(){
  const target=$('reportAnswer');target.replaceChildren(selectionControls(report.catalog.metrics,report.metrics,'metric',true));
  const actions=node('div',null,'wizard-actions'),count=node('p');count.id='selectionCount';
- const buttons=node('div'),back=node('button','← Alterar dimensões','wizard-secondary'),next=node('button','Ver estrutura →','primary-button');next.id='wizardNext';back.type=next.type='button';
+ const buttons=node('div'),back=node('button','← Alterar dimensões','wizard-secondary'),next=node('button','Gerar prévia →','primary-button');next.id='wizardNext';back.type=next.type='button';
  back.addEventListener('click',()=>{steps('dimensions');$('reportChat').replaceChildren();wizardMessage('bot','Quais dimensões você quer usar?');renderDimensions();});
- next.addEventListener('click',()=>{if(!report.metrics.length)return;wizardMessage('user',report.metrics.map(id=>contract.byId[id].label).join(', '));wizardMessage('bot','Sua estrutura está pronta. Confira o recorte e as colunas. Neste protótipo, o download contém apenas os cabeçalhos do relatório, sem dados de negócio.');steps('review');renderReview();});
+ next.addEventListener('click',()=>{if(!report.metrics.length)return;wizardMessage('user',report.metrics.map(id=>contract.byId[id].label).join(', '));wizardMessage('bot','Sua prévia está pronta, com linhas de exemplo agrupadas pelas dimensões escolhidas. O CSV inclui os mesmos dados que você vê na tabela.');steps('review');renderReview();});
  buttons.className='comparison-actions';buttons.append(back,next);actions.append(count,buttons);target.append(actions);updateSelection();
 }
 function cell(value){const s=String(value);const protectedValue=/^[=+\-@\t\r]/.test(s)?"'"+s:s;return '"'+protectedValue.replace(/"/g,'""')+'"';}
-function downloadStructure(){
- const headings=[...report.dimensions,...report.metrics.map(id=>contract.byId[id].label)];
- const data='\uFEFF'+headings.map(cell).join(';')+'\r\n';
+function previewData(){return window.OracleReportDemo.build(app.getContext(),report.dimensions.map(id=>report.catalog.dimensions.find(d=>d.id===id)));}
+function metricHeading(id,currency){const metric=contract.byId[id];return metric.label+(metric.format==='money'?` (${currency})`:'');}
+function metricValue(id,value,currency,csv=false){
+ const metric=contract.byId[id];if(metric.format==='percent')return new Intl.NumberFormat('pt-BR',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2}).format(value);
+ if(metric.format==='money'&&!csv)return new Intl.NumberFormat('pt-BR',{style:'currency',currency}).format(value);
+ return new Intl.NumberFormat('pt-BR',{useGrouping:!csv,maximumFractionDigits:2,minimumFractionDigits:metric.format==='money'?2:0}).format(value);
+}
+function downloadReport(){
+ const preview=previewData(),headings=[...report.dimensions,...report.metrics.map(id=>metricHeading(id,preview.currency))];
+ const lines=[headings,...preview.rows.map(row=>[...row.dimensions,...report.metrics.map(id=>metricValue(id,row.metrics[id],preview.currency,true))])];
+ const data='\uFEFF'+lines.map(values=>values.map(cell).join(';')).join('\r\n')+'\r\n';
  const blob=new Blob([data],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
- const c=app.getContext();a.href=url;a.download=`Relatorio-estrutura-${c.subsidiaries[0].replace(/[^a-zA-Z0-9_-]/g,'_')}-${c.period}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const c=app.getContext();a.href=url;a.download=`Relatorio-exemplo-${c.subsidiaries[0].replace(/[^a-zA-Z0-9_-]/g,'_')}-${c.period}-${preview.currency}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function renderReview(){
- const target=$('reportAnswer');target.replaceChildren(node('h3','Prévia da estrutura','report-title'),node('p',currentLabel(),'report-selection'));
- target.append(node('p','Este é um protótipo de configuração. O CSV contém apenas as colunas escolhidas; os espaços abaixo representam dados ainda não carregados.','preview-note'));
+ const preview=previewData(),target=$('reportAnswer');target.replaceChildren(node('h3','Prévia do relatório','report-title'),node('p',currentLabel(),'report-selection'));
+ target.append(node('p',`Dados de exemplo · ${preview.rows.length} linha(s) agrupada(s). Os valores são demonstrativos e o CSV inclui esta tabela preenchida.`,'preview-note'));
  const wrap=node('div',null,'report-table-wrap'),table=node('table',null,'report-table'),thead=node('thead'),tr=node('tr');
- [...report.dimensions,...report.metrics.map(id=>contract.byId[id].label)].forEach(value=>{const th=node('th',value);th.scope='col';tr.append(th);});thead.append(tr);table.append(thead);
- const tbody=node('tbody');for(let i=0;i<3;i++){const row=node('tr');for(let j=0;j<report.dimensions.length+report.metrics.length;j++)row.append(node('td','—'));tbody.append(row);}table.append(tbody);wrap.append(table);target.append(wrap);
- const pending=report.metrics.filter(id=>contract.byId[id].status==='pending');if(pending.length)target.append(node('p','Definições ainda pendentes: '+pending.map(id=>contract.byId[id].label).join(', ')+'.','report-selection'));
- const actions=node('div',null,'wizard-actions'),back=node('button','← Alterar métricas','wizard-secondary'),download=node('button','Baixar estrutura CSV ↓','primary-button');back.type=download.type='button';back.addEventListener('click',()=>{steps('metrics');renderMetrics();});download.addEventListener('click',downloadStructure);actions.append(back,download);target.append(actions);
+ [...report.dimensions,...report.metrics.map(id=>metricHeading(id,preview.currency))].forEach(value=>{const th=node('th',value);th.scope='col';tr.append(th);});thead.append(tr);table.append(thead);
+ const tbody=node('tbody');for(const entry of preview.rows){const row=node('tr');entry.dimensions.forEach(value=>row.append(node('td',String(value))));for(const id of report.metrics)row.append(node('td',metricValue(id,entry.metrics[id],preview.currency),'numeric-cell'));tbody.append(row);}table.append(tbody);wrap.append(table);target.append(wrap);
+ const actions=node('div',null,'wizard-actions'),back=node('button','← Alterar métricas','wizard-secondary'),download=node('button','Baixar CSV ↓','primary-button');back.type=download.type='button';back.addEventListener('click',()=>{steps('metrics');renderMetrics();});download.addEventListener('click',downloadReport);actions.append(back,download);target.append(actions);
 }
 // Example outcomes are deliberately separate from BigQuery and labelled as simulated.
 const items=[
