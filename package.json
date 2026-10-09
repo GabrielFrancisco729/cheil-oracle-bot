@@ -1,6 +1,6 @@
 {
   "name": "cheil-oracle-bot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Oráculo de Dados Cheil BI com Claude e BigQuery",
   "main": "server.js",
   "scripts": {

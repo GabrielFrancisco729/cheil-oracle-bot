@@ -6,6 +6,7 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const path = require('path');
 const { createDataService, validateContext } = require('./lib/data');
 const { createAIService } = require('./lib/ai');
+const metricContract = require('./lib/metrics');
 
 function integerEnv(env, key, fallback) {
   const value = Number(env[key] || fallback);
@@ -38,6 +39,23 @@ function createApp({ env = process.env, dataService, aiService } = {}) {
   if (!aiService && env.ANTHROPIC_API_KEY) aiService = createAIService(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 60000, maxRetries: 1 }), dataService, env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001');
   app.get('/api/config', (req, res) => res.json({ success: true, aiConfigured: Boolean(aiService) }));
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  app.get('/api/metric-contract', (req, res) => res.json({ success: true, version: metricContract.version, metrics: metricContract.metrics, quality: metricContract.metricQuality() }));
+  app.get('/api/report-catalog', async (req, res) => {
+    try {
+      res.json({ success: true, source: 'bigquery', dimensions: await dataService.dimensions(), metrics: metricContract.metrics });
+    } catch (_) {
+      res.json({ success: true, source: 'reference', notice: 'Lista de exemplo: a leitura do schema de dAllDimensions ainda não está disponível.', dimensions: ['SUB', 'CHANNEL', 'CAMPAIGN', 'TrackingCode'].map(id => ({ id, label: id, type: 'STRING' })), metrics: metricContract.metrics });
+    }
+  });
+  const templates = {
+    monthly: 'SEDA-Report-Mensal-Agosto-2026.pptx',
+    quarterly: 'SEDA-Report-Quarter-Q2-2026.pptx',
+  };
+  app.get('/api/templates/:type', (req, res, next) => {
+    const name = Object.hasOwn(templates, req.params.type) ? templates[req.params.type] : null;
+    if (!name) return res.status(404).json({ error: 'Modelo não encontrado.' });
+    res.download(path.join(__dirname, 'public', 'downloads', name), name, error => { if (error) next(error); });
+  });
   app.get('/api/subsidiaries', async (req, res, next) => {
     try { res.json({ success: true, subsidiaries: await dataService.subsidiaries() }); } catch (error) { error.service = 'bigquery'; next(error); }
   });

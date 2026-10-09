@@ -39,10 +39,10 @@ test('rejects invalid contexts, identifiers and query options', () => {
 });
 test('snapshot uses five filtered queries, caches same context and invalidates different filters', async () => {
   const queries = [];
-  const bq = { query: async q => { queries.push(q); return [[{ row_count: 5, orders: 4, revenue: 100, first_date: { value: '2026-10-01' } }]]; } };
+  const bq = { query: async q => { queries.push(q); return [[{ row_count: 5, orders: null, aov: null, revenue: 100, first_date: { value: '2026-10-01' } }]]; } };
   const data = createDataService(bq);
   const result = await data.snapshot(context); await data.snapshot(context);
-  assert.equal(queries.length, 5); assert.equal(result.totals.aov, 25); assert.equal(result.totals.first_date, '2026-10-01');
+  assert.equal(queries.length, 5); assert.equal(result.totals.aov, null); assert.equal(result.quality.orders.status, 'pending'); assert.equal(result.totals.first_date, '2026-10-01');
   assert.ok(queries.every(q => q.params.includeSela && q.params.startDate));
   await data.snapshot({ ...context, period: 'all_time' }); assert.equal(queries.length, 9);
 });

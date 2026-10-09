@@ -3,8 +3,8 @@ const $ = id => document.getElementById(id);
 const state = { revision: 0, history: [], activeTab: 'chat', aiReady: false, setupReady: false, chatRequest: null, summaryRequests: {}, summaries: {}, recognition: null, listening: false, voiceGeneration: 0 };
 const labels = { executive: 'resumo-exec', managerial: 'resumo-ger' };
 try { localStorage.removeItem('cheil_oracle_api_key'); } catch (_) { /* Storage may be disabled. */ }
-function context() { return { subsidiaries: [$('subsidiary').value], period: $('period').value }; }
-function contextText() { return `${$('subsidiary').value} · ${$('period').selectedOptions[0].textContent}`; }
+function context() { return { subsidiaries: [$('subsidiary').value], period: $('period').value, currency: $('currency').value }; }
+function contextText() { return `${$('subsidiary').value} · ${$('period').selectedOptions[0].textContent} · ${$('currency').value === 'BRL' ? 'BRL · SEDA' : 'Moeda padrão'}`; }
 function showNotice(message, retry = false) { $('noticeText').textContent = message; $('notice').hidden = !message; $('retrySetup').hidden = !retry; }
 function updateControls() {
   const ready = state.aiReady && state.setupReady;
@@ -67,13 +67,14 @@ function resetChat() {
   $('question').value = ''; updateControls();
 }
 function invalidateContext() {
+  const seda = $('subsidiary').value === 'SEDA'; $('currency').options[1].disabled = !seda; if (!seda) $('currency').value = 'standard';
   state.revision++;
   resetChat();
   for (const controller of Object.values(state.summaryRequests)) controller.abort();
   state.summaryRequests = {}; state.summaries = {};
   for (const type of Object.keys(labels)) { $(type + 'Content').replaceChildren(); $(type + 'Context').textContent = contextText(); }
   $('contextLabel').textContent = contextText(); $('chatContext').textContent = contextText();
-  updateControls(); maybeGenerate();
+  updateControls(); maybeGenerate(); window.OraclePrototypes?.contextChanged();
 }
 async function sendMessage(text) {
   const message = (typeof text === 'string' ? text : $('question').value).trim();
@@ -178,14 +179,14 @@ async function initialize() {
     const all = subsidiaries.value.subsidiaries;
     const options = ['LAO', ...all.filter(s => !/^SELA/i.test(s) && s !== 'LAO'), ...(all.some(s => /^SELA/i.test(s)) ? ['SELA'] : [])];
     $('subsidiary').replaceChildren(...[...new Set(options)].map(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; return option; }));
-    $('subsidiary').value = options.includes(previous) ? previous : 'LAO'; state.setupReady = true;
+    $('subsidiary').value = options.includes(previous) ? previous : 'LAO'; state.setupReady = true; $('currency').options[1].disabled = $('subsidiary').value !== 'SEDA';
   } else errors.push('Não foi possível carregar as subsidiárias. Tente novamente.');
   showNotice(errors.join(' '), results.some(r => r.status === 'rejected')); updateControls(); maybeGenerate();
 }
 $('chatForm').addEventListener('submit', event => { event.preventDefault(); if (state.listening) { stopDictation(); return; } sendMessage(); });
 $('question').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (state.listening) stopDictation(); else sendMessage(); } });
 $('question').addEventListener('input', () => { $('question').style.height = 'auto'; $('question').style.height = Math.min($('question').scrollHeight, 120) + 'px'; });
-$('subsidiary').addEventListener('change', invalidateContext); $('period').addEventListener('change', invalidateContext);
+$('subsidiary').addEventListener('change', invalidateContext); $('period').addEventListener('change', invalidateContext); $('currency').addEventListener('change', invalidateContext);
 $('newChat').addEventListener('click', () => { resetChat(); switchTab('chat'); $('question').focus(); });
 $('retrySetup').addEventListener('click', initialize);
 document.querySelectorAll('.suggestions button').forEach(b => b.addEventListener('click', () => sendMessage(b.dataset.question)));
@@ -201,4 +202,5 @@ tabs.forEach((b, index) => {
     event.preventDefault(); tabs[next].focus(); switchTab(tabs[next].dataset.tab);
   });
 });
+window.OracleApp = { getContext: context, contextText, switchTab };
 setupDictation(); initialize();

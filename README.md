@@ -1,5 +1,17 @@
 # Oráculo de Dados — Cheil BI
 
+## Atualização 1.2: novas abas e contrato DAX
+
+- **Slides / Relatórios:** escolha o modelo mensal (Agosto/2026) ou trimestral (Q2/2026) e baixe os PPTX originais. Os filtros não reescrevem o conteúdo desses arquivos.
+- **Relatório:** assistente em formato de conversa para escolher dimensões de `dAllDimensions`, depois métricas e conferir a estrutura. A leitura de schema é dinâmica; se falhar, a lista é explicitamente identificada como exemplo. O CSV desta prototipação contém somente cabeçalhos, sem valores fictícios de negócio.
+- **Best x Worst:** exemplos por OR, CTOR e CVR, filtro de volume mínimo, criativos em tamanho completo, insights e ações para testar. Todas as métricas, assuntos e posições são explicitamente simulados. Não há inferência de relação entre os JPG enviados e campanhas reais.
+- **Métricas compartilhadas:** regras documentadas de Visits, Units, Revenue, OR, CTOR e CTR, incluindo os efeitos de `REMOVEFILTERS(dProducts)`. Orders, CVR e AOV reais estão pendentes de `tOrdersGA4` e do schema/relacionamentos de `auxOrderIDPerDate`; não são calculados por aproximação.
+- **Moeda:** padrão usa o campo `Revenue`; BRL em SEDA seleciona `Revenue_SEDA` nas parcelas determinadas pelo DOCX. GA4 e affiliate permanecem em `Revenue`.
+
+Leia `METRIC_CONTRACT.md` para as regras completas e as dependências que faltam. O DOCX original acompanha o projeto em `reference/`. Nenhuma variável nova obrigatória é necessária no Render; as novas abas usam os arquivos estáticos e o schema obtido com a mesma conexão BigQuery.
+
+
+
 Aplicação Express + HTML/CSS/JavaScript com Claude e BigQuery. O acesso é direto, sem login. Chat e resumos usam exclusivamente a chave configurada no servidor.
 
 ## O que mudou
@@ -13,7 +25,7 @@ Aplicação Express + HTML/CSS/JavaScript com Claude e BigQuery. O acesso é dir
 - Ditado em português preenche a pergunta; o usuário revisa antes de enviar.
 - Cabeçalho Samsung preto / Cheil branco, abas retangulares com os textos originais e filtros no estilo da dashboard.
 - Filtros sempre disponíveis. Alterá-los limpa a conversa e os resumos e cancela respostas obsoletas na interface.
-- Slides/relatórios exportáveis e a aba Best x Worst continuam como placeholders.
+- Os dois modelos PPTX estão disponíveis para download. Relatório e Best x Worst são protótipos com o escopo descrito acima.
 
 ## Atualizar o serviço existente no Render
 
@@ -67,11 +79,11 @@ Limites e cache são em memória: reinícios zeram os contadores, e réplicas t�
 - As ferramentas geram somente SQL parametrizado, a partir de agrupamentos e métricas permitidos. A IA não executa SQL livre, não altera dados e não muda o recorte dos filtros.
 - O chat pode ordenar qualquer um dos indicadores por maior/menor valor. Cada consulta adicional retorna até 50 grupos e uma pergunta pode executar até seis consultas adicionais.
 - A visão inicial contém totais, top 5 campanhas/produtos por receita, canais e totais do período anterior. Resultados sem linha não são apresentados como zero.
-- OR = opens / delivered; CTOR = clicks / opens; CVR = orders / visits; AOV = revenue / orders. Taxas são recalculadas pelos totais, não pela média das taxas de linha.
-- A fórmula de receita do código original, inclusive o ajuste de affiliate, foi preservada. Ela combina regras de Source e CHANNEL: valide a semântica dessas somas na sua base. Não houve nova conversão cambial e o app não presume BRL/USD para `Revenue_SEDA`.
-- As dimensões são reduzidas a uma linha por TrackingCode/SKU antes do join para evitar multiplicar os fatos. Havendo valores conflitantes, usa-se uma linha determinística de SUB/CHANNEL/CAMPAIGN por TrackingCode e o menor PRODUCT por SKU. Se existir uma coluna de versão/data oficial, substitua o desempate pela regra de negócio apropriada.
-- O arquivo original já utilizava esses nomes de tabelas e colunas. Sem acesso à base real, alterações de schema e a equivalência com medidas específicas do Power BI precisam ser verificadas no ambiente.
-- O resumo gerencial é uma proposta inicial de lógica: diagnóstico do funil, canais, destaques e ações priorizadas. Não envolve uma nova implementação da aba Best x Worst.
+- As definições vigentes estão em `METRIC_CONTRACT.md`, traduzidas do documento DAX. Taxas não são médias de taxas de linha. As três medidas de pedidos pendentes não recebem valores aproximados.
+- As dimensões são reduzidas a uma linha por TrackingCode/SKU antes do join para evitar multiplicar fatos. Valide as chaves e o desempate contra o modelo Power BI.
+
+- O arquivo original já utilizava as tabelas principais; a tradução DAX também requer CHANNEL, CHANNEL / TRIGGER e Revenue em fConsolidated. Sem acesso à base real, alterações de schema e a equivalência com medidas específicas do Power BI precisam ser verificadas no ambiente.
+- O resumo gerencial é uma proposta inicial de lógica: diagnóstico do funil, canais, destaques e ações priorizadas. Usa dados reais disponíveis. A nova aba Best x Worst é uma demonstração separada.
 
 ## Microfone
 

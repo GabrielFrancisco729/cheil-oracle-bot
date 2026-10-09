@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Oráculo de Dados - Cheil BI</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/metric-contract.js" defer></script>
   <script src="/app.js" defer></script>
+  <script src="/prototypes.js" defer></script>
 </head>
 <body>
   <div class="dashboard">
@@ -19,7 +21,7 @@
         <button id="tab-chat" role="tab" aria-selected="true" aria-controls="chat" class="tab active" data-tab="chat">Chat</button>
         <button id="tab-resumo-exec" role="tab" aria-selected="false" aria-controls="resumo-exec" class="tab" data-tab="resumo-exec" tabindex="-1">Resumo Executivo</button>
         <button id="tab-resumo-ger" role="tab" aria-selected="false" aria-controls="resumo-ger" class="tab" data-tab="resumo-ger" tabindex="-1">Resumo Gerencial</button>
-        <button id="tab-slides" role="tab" aria-selected="false" aria-controls="slides" class="tab" data-tab="slides" tabindex="-1">Slides</button>
+        <button id="tab-slides" role="tab" aria-selected="false" aria-controls="slides" class="tab" data-tab="slides" tabindex="-1">Slides / Relatórios</button>
         <button id="tab-best-worst" role="tab" aria-selected="false" aria-controls="best-worst" class="tab" data-tab="best-worst" tabindex="-1">Best x Worst</button>
       </nav>
     </header>
@@ -30,10 +32,12 @@
         <option value="current_week">Semana Atual</option><option value="last_week">Semana Passada</option>
         <option value="current_month" selected>Mês Corrente</option><option value="last_month">Mês Passado</option><option value="all_time">Todo Período</option>
       </select></label>
+      <label class="filter-box currency-filter"><span>MOEDA</span><select id="currency" aria-label="Moeda"><option value="standard">Moeda padrão</option><option value="BRL" disabled>BRL · SEDA</option></select></label>
       <div class="filter-context"><span class="context-dot"></span><span id="contextLabel">LAO · Mês Corrente</span></div>
       <button class="plain-button" id="newChat" type="button">↻ Nova conversa</button>
     </div>
     <div id="notice" class="notice" role="status" hidden><span id="noticeText"></span><button id="retrySetup" type="button" hidden>Tentar novamente</button></div>
+    <div class="metric-status" id="metricStatus">Orders, CVR e AOV aguardam as definições complementares do modelo. Os demais indicadores usam as regras do documento DAX.</div>
     <main>
       <section id="chat" class="panel chat-panel" role="tabpanel" aria-labelledby="tab-chat">
         <div class="panel-heading"><div><span class="eyebrow">ORÁCULO DE DADOS</span><h2>Chat</h2></div><span class="panel-context" id="chatContext">LAO · Mês Corrente</span></div>
@@ -55,8 +59,30 @@
         <div class="panel-heading"><div><span class="eyebrow">VISÃO OPERACIONAL</span><h2>Resumo Gerencial</h2></div><button class="primary-button generate" data-type="managerial">Atualizar resumo ↻</button></div>
         <p class="summary-description">Desempenho por canal, campanhas em destaque e ações prioritárias.</p><div id="managerialContext" class="summary-context"></div><div id="managerialContent" class="summary-content" aria-live="polite"></div>
       </section>
-      <section id="slides" class="panel placeholder-panel" role="tabpanel" aria-labelledby="tab-slides" hidden><span class="eyebrow">SLIDES</span><h2>Slides e Relatórios</h2><p>Em desenvolvimento</p></section>
-      <section id="best-worst" class="panel placeholder-panel" role="tabpanel" aria-labelledby="tab-best-worst" hidden><span class="eyebrow">BEST X WORST</span><h2>Best x Worst Analysis</h2><p>Em desenvolvimento</p></section>
+      <section id="slides" class="panel materials-panel" role="tabpanel" aria-labelledby="tab-slides" hidden>
+        <div class="panel-heading"><div><span class="eyebrow">MATERIAIS E ANÁLISES</span><h2>Slides / Relatórios</h2></div><span class="prototype-badge">Protótipo</span></div>
+        <p class="summary-description">Escolha um modelo de apresentação ou monte a estrutura do seu relatório.</p>
+        <div class="material-switch" role="group" aria-label="Tipo de material"><button id="chooseSlides" class="selected" type="button" aria-pressed="true">Slides</button><button id="chooseReport" type="button" aria-pressed="false">Relatório</button></div>
+        <div id="slideLibrary">
+          <div class="library-intro"><h3>Qual modelo você quer baixar?</h3><p>Os arquivos são os exemplos originais enviados. Nesta versão, eles preservam o conteúdo e os períodos do modelo, independentemente dos filtros acima.</p></div>
+          <div class="template-grid">
+            <article class="template-card" data-template="monthly"><div class="template-cover monthly-cover"><span class="cover-brand">SAMSUNG</span><span class="cover-period">AGOSTO / 2026</span><strong>Report<br>Mensal</strong><span class="cover-bottom">SEDA <span>Cheil</span></span></div><div class="template-body"><span class="eyebrow">MODELO MENSAL</span><h3>SEDA · Agosto 2026</h3><p>25 slides · PowerPoint · 7,9 MB</p><label class="template-choice"><input type="radio" name="slideTemplate" value="monthly" checked> Usar modelo mensal</label></div></article>
+            <article class="template-card" data-template="quarterly"><div class="template-cover quarter-cover"><span class="cover-brand">SAMSUNG</span><span class="cover-period">Q2 / 2026</span><strong>Report<br>Trimestral</strong><span class="cover-bottom">SEDA <span>Cheil</span></span></div><div class="template-body"><span class="eyebrow">MODELO DE QUARTER</span><h3>SEDA · Q2 2026</h3><p>36 slides · PowerPoint · 22,3 MB</p><label class="template-choice"><input type="radio" name="slideTemplate" value="quarterly"> Usar modelo trimestral</label></div></article>
+          </div>
+          <div class="download-bar"><p><strong id="chosenTemplateLabel">Modelo mensal selecionado</strong><span>Download do arquivo original, sem atualização automática dos números.</span></p><a class="primary-button download-link" id="downloadTemplate" href="/api/templates/monthly" download>Baixar PowerPoint ↓</a></div>
+        </div>
+        <div id="reportBuilder" hidden><div class="wizard-top"><ol class="wizard-steps" aria-label="Etapas do relatório"><li id="stepDimensions" class="current">1. Dimensões</li><li id="stepMetrics">2. Métricas</li><li id="stepReview">3. Prévia</li></ol><button id="restartReport" class="plain-button" type="button">Recomeçar</button></div><div class="report-chat" id="reportChat" role="log" aria-live="polite"></div><div class="report-answer" id="reportAnswer"></div></div>
+      </section>
+      <section id="best-worst" class="panel assets-panel" role="tabpanel" aria-labelledby="tab-best-worst" hidden>
+        <div class="panel-heading"><div><span class="eyebrow">CRIATIVOS DE EMAIL</span><h2>Best x Worst</h2></div><span class="prototype-badge">Demonstração</span></div>
+        <p class="summary-description">Compare os assets, entenda os sinais de performance e priorize os próximos testes.</p>
+        <div class="demo-note"><strong>Dados de exemplo</strong><span>Os criativos são os arquivos enviados. Assuntos, métricas e posições no ranking são ilustrativos e não representam consultas à base.</span></div>
+        <div class="asset-controls"><div><span class="control-label">COMPARAR POR</span><div class="ranking-switch" role="group" aria-label="Métrica do ranking"><button type="button" data-rank="open_rate" class="selected" aria-pressed="true">OR%</button><button type="button" data-rank="click_rate" aria-pressed="false">CTOR%</button><button type="button" data-rank="cvr" aria-pressed="false">CVR%</button></div></div><label class="volume-control"><span class="control-label">VOLUME MÍNIMO</span><select id="minimumVolume" aria-label="Entregas mínimas"><option value="0">Todos os exemplos</option><option value="100000">100 mil entregas</option><option value="150000">150 mil entregas</option></select></label><span id="rankingScope" class="scope-note"></span></div>
+        <div class="ranking-explanation" id="rankingExplanation"></div>
+        <div id="assetComparison" class="asset-comparison"></div>
+        <div id="comparisonIntelligence" class="comparison-intelligence"></div>
+      </section>
+      <dialog id="creativeDialog" class="creative-dialog"><div class="dialog-toolbar"><strong id="creativeTitle">Criativo</strong><button id="closeCreative" class="plain-button" type="button" aria-label="Fechar criativo">Fechar ×</button></div><div class="dialog-image"><img id="creativeFullImage" alt="Criativo de email completo"></div></dialog>
     </main>
   </div>
 </body>
